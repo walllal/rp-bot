@@ -1,6 +1,6 @@
 import { AccessControlType, AppSettings } from '@prisma/client'; // Import AppSettings if needed, or rely on inferred type
 import { getAppSettings } from './configStore'; // Import the new settings function
-import { prisma } from '../server';
+import { prisma } from './prismaClient'; // Corrected import path
 import { FastifyBaseLogger } from 'fastify'; // Import logger type
 
 // const prisma = new PrismaClient();
@@ -16,7 +16,7 @@ export async function getAccessControlList(type: AccessControlType): Promise<str
             where: { type },
             select: { contextId: true },
         });
-        return entries.map(entry => entry.contextId);
+        return entries.map((entry: { contextId: string }) => entry.contextId);
     } catch (error) {
         console.error(`获取访问控制列表 ${type} 失败:`, error);
         return [];

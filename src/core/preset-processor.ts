@@ -1,4 +1,5 @@
-import { PrismaClient } from '@prisma/client';
+// import { PrismaClient } from '@prisma/client'; // Replaced by shared instance
+import { prisma } from '../db/prismaClient'; // Import the shared Prisma instance
 import {
   PresetContent,
   PresetMessage,
@@ -21,8 +22,8 @@ import {
 } from '../db/variables'; // +++ Import custom variable functions
  // Removed import of getSetting and SettingKey
 
- // 初始化 Prisma Client (稍后会移到更合适的位置统一管理)
- const prisma = new PrismaClient();
+ // Prisma Client is now initialized and imported from '../db/prismaClient'
+ // const prisma = new PrismaClient(); // Removed
 
 /**
  * 辅助函数：数字补零 (例如: 7 -> "07")

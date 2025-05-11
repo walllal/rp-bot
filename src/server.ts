@@ -1,11 +1,12 @@
 import Fastify from 'fastify';
-import { PrismaClient } from '@prisma/client';
+// import { PrismaClient } from '@prisma/client'; // Replaced by shared instance
+import { prisma } from './db/prismaClient'; // Import the shared Prisma instance
 import path from 'path'; // 导入 path 模块
 import fastifyStatic from '@fastify/static'; // 导入插件
 import { authMiddleware } from './middleware/authMiddleware'; // +++ 导入认证中间件
 
-// 初始化 Prisma Client (更合适的位置)
-export const prisma = new PrismaClient();
+// Prisma Client is now initialized and imported from './db/prismaClient'
+// export const prisma = new PrismaClient(); // Removed, using shared instance
 
 // 创建 Fastify 实例
 const server = Fastify({

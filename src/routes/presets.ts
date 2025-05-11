@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest, FastifyReply } from 'fastify';
 import { Prisma } from '@prisma/client'; // Import Prisma types
-import { prisma } from '../server'; // Import shared prisma instance
+import { prisma } from '../db/prismaClient'; // Corrected import path
 import { PresetContent, PresetItemSchema } from '../core/types'; // Import core types AND the Zod schema for validation
 import { z } from 'zod'; // Import Zod
 // Removed import of reinitializeOpenAIClient

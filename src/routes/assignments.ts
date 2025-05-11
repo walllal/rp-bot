@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest, FastifyReply } from 'fastify';
 import { AssignmentType, ContextType as DbContextType, Prisma } from '@prisma/client';
-import { prisma } from '../server'; // Import shared prisma instance
+import { prisma } from '../db/prismaClient'; // Corrected import path
 
 // 定义更新分配的请求体接口
 interface UpdateAssignmentBody {

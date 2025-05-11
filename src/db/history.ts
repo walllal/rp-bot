@@ -1,10 +1,11 @@
-import { PrismaClient, ContextType, Role } from '@prisma/client';
+import { ContextType, Role } from '@prisma/client';
+import { prisma } from './prismaClient'; // Import the shared Prisma instance
 // Removed import of getSetting, SettingKey
 import { FastifyBaseLogger } from 'fastify'; // Import logger type
 
 // Use a shared Prisma instance if possible, otherwise initialize locally
-// Assuming prisma instance is handled elsewhere or initialized here for simplicity
-const prisma = new PrismaClient();
+// Prisma instance is now imported from './prismaClient'
+// const prisma = new PrismaClient(); // Removed
 
 /**
  * 自动清理超出上限的历史记录

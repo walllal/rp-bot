@@ -1,6 +1,6 @@
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest, FastifyReply } from 'fastify';
 import { ContextType as DbContextType } from '@prisma/client';
-import { prisma } from '../server'; // Import shared prisma instance
+import { prisma } from '../db/prismaClient'; // Corrected import path
 import { getHistoryItems, deleteHistoryItems } from '../db/history'; // Import history fetching and deleting functions
 import { z } from 'zod'; // Import Zod
 

@@ -1,4 +1,5 @@
-import { Preset, DisguisePreset, PrismaClient } from '@prisma/client';
+import { Preset, DisguisePreset } from '@prisma/client';
+import { prisma } from '../db/prismaClient';
 import { FastifyInstance } from 'fastify';
 import { callOpenAI } from './openai-client';
 import { OpenAIMessage, VariableContext } from './types'; // +++ Import VariableContext
@@ -11,21 +12,6 @@ import { getBotInstance, getBotConfig, sendOneBotAction } from '../onebot/connec
 
 // Store for active timers: presetType_presetId -> NodeJS.Timeout
 const activeTimers: Record<string, NodeJS.Timeout> = {};
-let prismaInstance: PrismaClient; // To be initialized globally within this module
-
-// Helper to get or initialize Prisma instance
-function getPrisma(serverInstance?: FastifyInstance): PrismaClient {
-    if (prismaInstance) return prismaInstance;
-    if (serverInstance && (serverInstance as any).prisma) {
-        prismaInstance = (serverInstance as any).prisma;
-    } else {
-        // Fallback, though ideally Prisma is managed centrally and passed
-        console.warn('[trigger-scheduler] Prisma instance not found on server, creating new one. This might not be ideal for production.');
-        prismaInstance = new PrismaClient();
-    }
-    return prismaInstance;
-}
-
 function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: string, serverInstance?: FastifyInstance, data?: any) {
     const logger = serverInstance?.log || console; // Use server logger if available, else console
     const logPayload: any = { context: 'TriggerScheduler' };
@@ -216,7 +202,7 @@ export function scheduleTimedTrigger(
         log('info', `Scheduling timed trigger for ${timerId} (${config.name}) in ${safeIntervalMs / 1000} seconds.`, serverInstance);
 
         activeTimers[timerId] = setTimeout(async () => {
-            const prisma = getPrisma(serverInstance);
+            // const prisma = getPrisma(serverInstance); // Replaced with imported prisma
             let currentConfig: Preset | DisguisePreset | null = null;
             try {
                 if (configType === 'preset') {
@@ -288,7 +274,7 @@ export async function updateOrRemoveTimedTriggerForPreset(
     configId: number,
     serverInstance: FastifyInstance
 ) {
-    const prisma = getPrisma(serverInstance);
+    // const prisma = getPrisma(serverInstance); // Replaced with imported prisma
     let configToSchedule: Preset | DisguisePreset | null = null;
 
     log('debug', `Updating/Removing timed trigger for ${configType} ID ${configId}`, serverInstance);
@@ -317,7 +303,7 @@ export async function updateOrRemoveTimedTriggerForPreset(
 }
 
 export async function initializeAllTimedTriggers(serverInstance: FastifyInstance) {
-    const prisma = getPrisma(serverInstance); // Ensure prisma is initialized via getPrisma
+    // const prisma = getPrisma(serverInstance); // Replaced with imported prisma
     
     log('trace', '正在初始化所有定时触发器...', serverInstance);
     try {

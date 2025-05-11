@@ -1,6 +1,7 @@
-import { PrismaClient, GlobalVariable, LocalVariableDefinition, LocalVariableInstance, ContextType } from '@prisma/client';
+import { GlobalVariable, LocalVariableDefinition, LocalVariableInstance, ContextType } from '@prisma/client';
+import { prisma } from './prismaClient'; // Import the shared Prisma instance
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient(); // Removed
 
 /**
  * 获取指定名称的全局变量。

@@ -1,7 +1,8 @@
-import { PrismaClient, Friend, Group } from '@prisma/client';
+import { Friend, Group } from '@prisma/client';
+import { prisma } from './prismaClient'; // Import the shared Prisma instance
 import { FastifyBaseLogger } from 'fastify';
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient(); // Removed, using shared instance
 
 // Define types for API responses (adjust based on actual OneBot implementation)
 interface FriendFromApi {

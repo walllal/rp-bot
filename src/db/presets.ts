@@ -1,8 +1,9 @@
-import { PrismaClient, ContextType as DbContextTypePrisma, AssignmentType, Prisma, Preset, ContextType as DbContextType } from '@prisma/client'; // Import Prisma namespace for types
+import { ContextType as DbContextTypePrisma, AssignmentType, Prisma, Preset, ContextType as DbContextType } from '@prisma/client'; // Import Prisma namespace for types
+import { prisma } from './prismaClient'; // Import the shared Prisma instance
 import { PresetContent } from '../core/types'; // Import PresetContent type
 
-// Assuming prisma instance is handled elsewhere or initialized here for simplicity
-const prisma = new PrismaClient();
+// Prisma instance is now imported from './prismaClient'
+// const prisma = new PrismaClient(); // Removed
 
 // --- Preset CRUD ---
 

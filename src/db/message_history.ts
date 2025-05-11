@@ -1,9 +1,10 @@
-import { PrismaClient, ContextType as DbContextType, Prisma, MessageHistory } from '@prisma/client'; // Added MessageHistory
+import { ContextType as DbContextType, Prisma, MessageHistory } from '@prisma/client'; // Added MessageHistory
+import { prisma } from './prismaClient'; // Import the shared Prisma instance
 // Removed import of getSetting, SettingKey
 import { FastifyBaseLogger } from 'fastify'; // Import logger type
 
-// Assuming prisma instance is handled elsewhere or initialized here for simplicity
-const prisma = new PrismaClient();
+// Prisma instance is now imported from './prismaClient'
+// const prisma = new PrismaClient(); // Removed
 
 interface LogMessageData {
     contextType: DbContextType;

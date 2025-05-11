@@ -1,7 +1,8 @@
-import { PrismaClient, DisguisePreset, DisguisePresetAssignment, AssignmentType, ContextType as DbContextType, Prisma } from '@prisma/client'; // Import Prisma namespace
+import { DisguisePreset, DisguisePresetAssignment, AssignmentType, ContextType as DbContextType, Prisma } from '@prisma/client'; // Import Prisma namespace
+import { prisma } from './prismaClient'; // Import the shared Prisma instance
 import { PresetContent } from '../core/types'; // Assuming PresetContent type is reusable
 
-const prisma = new PrismaClient();
+// const prisma = new PrismaClient(); // Removed, using shared instance
 
 // --- Disguise Preset Functions ---
 
