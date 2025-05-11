@@ -1,0 +1,329 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client" // 指定 Prisma Client 的输出路径
+}
+
+datasource db {
+  provider = "sqlite" // 默认使用 SQLite
+  url      = env("DATABASE_URL") // 从 .env 文件读取数据库连接
+}
+
+// 预设模型
+model Preset {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique // 预设名称，需唯一
+  mode        String   @default("STANDARD") // 预设模式: STANDARD 或 ADVANCED
+  content     Json     // 预设内容，存储消息列表的 JSON 结构
+
+  // --- 预设专属 BOT 设置 ---
+  botName                  String?  // 机器人名称 (可选)
+  botNicknames             String?  // 机器人昵称, 逗号分隔 (可选)
+  advancedModeMessageDelay Int      @default(1000) // 高级模式消息发送延时 (毫秒)
+  botFuzzyMatchEnabled     Boolean  @default(false) // 启用模糊匹配触发
+  allowImageInput          Boolean  @default(false) // 是否允许输入图片
+  allowVoiceOutput         Boolean  @default(false) // 新增：是否允许语音输出 (预设级别)
+  // --- 新增的四种触发方式控制 ---
+  nameTriggered            Boolean  @default(true) // 是否允许通过名称触发
+  nicknameTriggered        Boolean  @default(true) // 是否允许通过昵称触发
+  atTriggered              Boolean  @default(true) // 是否允许通过@触发
+  replyTriggered           Boolean  @default(true) // 是否允许通过回复触发
+  // --- 结束预设专属 BOT 设置 ---
+
+  // --- 预设专属应用及模型设置 ---
+  chatHistoryLimit         Int      @default(10)    // 对话历史记录上限 (条数)
+  messageHistoryLimit      Int      @default(10)    // 消息历史记录上限 (条数)
+  openaiApiKey             String?                 // OpenAI API Key (可选)
+  openaiBaseUrl            String?                 // OpenAI Base URL (可选, 用于代理)
+  openaiModel              String   @default("gpt-3.5-turbo") // OpenAI 模型名称
+  // --- 结束预设专属应用及模型设置 ---
+
+  // --- 预设专属联网设置 ---
+  allowWebSearch           Boolean  @default(false) // 是否允许联网搜索
+  webSearchApiKey          String?                 // 联网搜索 API Key (可选，独立于模型设置)
+  webSearchBaseUrl         String?                 // 联网搜索 Base URL (可选，独立于模型设置)
+  webSearchModel           String   @default("gemini-2.0-flash") // 联网搜索模型名称
+  webSearchSystemPrompt    String?                 // 新增：预设级联网搜索系统提示词 (可选)
+  // --- 结束预设专属联网设置 ---
+
+  // --- 新增：高级触发设置 ---
+  timedTriggerEnabled           Boolean  @default(false) // 是否启用定时触发
+  timedTriggerInterval          Int?                    // 定时触发间隔 (秒)
+  quantitativeTriggerEnabled    Boolean  @default(false) // 是否启用定量触发
+  quantitativeTriggerThreshold  Int?                    // 定量触发消息数量阈值
+  
+  aiTriggerEnabled              Boolean  @default(false) // 是否启用AI触发
+  aiTriggerApiKey               String?                 // AI触发API密钥
+  aiTriggerBaseUrl              String?                 // AI触发基础URL
+  aiTriggerModel                String?  @default("gpt-3.5-turbo") // AI触发模型名称
+  aiTriggerKeyword              String?                 // AI触发关键词
+  aiTriggerKeywordFuzzyMatch    Boolean  @default(false) // 新增：AI触发关键词是否启用模糊匹配
+  aiTriggerSystemPrompt         String?                 // AI触发系统级提示词
+  aiTriggerUserPrompt           String?                 // AI触发用户级提示词
+  // --- 结束高级触发设置 ---
+
+  assignments PresetAssignment[] // 关联到预设分配
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// 预设分配类型
+enum AssignmentType {
+  GLOBAL  // 全局默认
+  PRIVATE // 私聊指定
+  GROUP   // 群聊指定
+}
+
+// 预设分配模型
+model PresetAssignment {
+  id             Int            @id @default(autoincrement())
+  assignmentType AssignmentType // 分配类型 (全局, 私聊, 群聊)
+  contextId      String?        // 上下文 ID (QQ 号或群号)，全局时为 null
+  presetId       Int            // 关联的预设 ID
+  preset         Preset         @relation(fields: [presetId], references: [id], onDelete: Cascade) // 关联到 Preset 模型
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([assignmentType, contextId]) // 确保每个上下文只有一种分配
+}
+
+// 对话上下文类型
+enum ContextType {
+  PRIVATE
+  GROUP
+}
+
+// 对话角色
+enum Role {
+  USER
+  ASSISTANT
+  SYSTEM // 虽然预设里有 system，但历史记录通常只存 user 和 assistant
+}
+
+// 对话历史模型
+model ChatHistory {
+  id          Int         @id @default(autoincrement())
+  contextType ContextType // 上下文类型 (私聊, 群聊)
+  contextId   String      // 上下文 ID (QQ 号或群号)
+  messageId   String?     // 原始 QQ 消息 ID (可选)
+  userId      String      // 发送者 QQ 号
+  userName    String?     // 发送者昵称/群名片 (可选)
+  botName     String?     // 当时生效的机器人名称 (可选)
+  role        Role        // 角色 (用户, 助手)
+  content     String      // 消息内容
+  timestamp   DateTime    // 消息时间戳 (移除 @default(now()))
+
+  @@index([contextType, contextId, timestamp]) // 为查询历史记录添加索引
+ }
+
+// 应用设置模型 (重构为单记录模型)
+model AppSettings {
+  id                         Int     @id @default(1) // 固定 ID 为 1，确保只有一条记录
+
+  // 连接设置
+  onebotMode                 String  @default("ws-reverse") // "ws-reverse" or "ws"
+  onebotUrl                  String? // 正向 WS URL
+  onebotPort                 Int?    @default(6701) // 反向 WS 端口
+  onebotAccessToken          String? // 可选的 Access Token
+  onebotReconnectInterval    Int     @default(5000) // 正向 WS 重连间隔 (ms)
+
+  // 日志设置
+  logLevel                   String  @default("NORMAL") // "NORMAL", "DEBUG_AI", "DEBUG_ALL"
+
+  // 访问控制开关
+  privateWhitelistEnabled    Boolean @default(false)
+  privateBlacklistEnabled    Boolean @default(false)
+  groupWhitelistEnabled      Boolean @default(false)
+  groupBlacklistEnabled      Boolean @default(false)
+
+  // 新增：功能总开关
+  presetFeatureEnabled       Boolean @default(true)
+  disguiseFeatureEnabled     Boolean @default(false)
+
+  // 新增：插件设置 (存储为 String, 在代码中解析/序列化)
+  pluginSettings             String  @default("{}")
+
+  // 其他未来可能添加的应用级设置...
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@map("app_settings") // 映射到表名
+}
+
+
+// 访问控制列表类型
+enum AccessControlType {
+  PRIVATE_WHITELIST
+  PRIVATE_BLACKLIST
+  GROUP_WHITELIST
+  GROUP_BLACKLIST
+}
+
+// 访问控制模型
+model AccessControl {
+  id        Int               @id @default(autoincrement())
+  type      AccessControlType // 列表类型
+  contextId String            // QQ 号或群号
+  createdAt DateTime          @default(now())
+
+  @@unique([type, contextId]) // 确保每个 ID 在同类型列表中只出现一次
+}
+
+// 消息历史模型 (原 MessageLog)
+model MessageHistory {
+  id          Int         @id @default(autoincrement())
+  contextType ContextType // 上下文类型 (PRIVATE, GROUP)
+  contextId   String      // 上下文 ID (QQ 号或群号)
+  userId      String      // 发送者 QQ 号
+  userName    String?     // 发送者昵称/群名片 (可选)
+  botName     String?     // 当时生效的机器人名称 (可选)
+  messageId   String      @unique // 原始 QQ 消息 ID (通常是数字，但用 String 更安全) - 添加 @unique
+  rawMessage  Json        // 存储原始 OneBot 消息段数组 (JSON 格式)
+  timestamp   DateTime    // 消息时间戳 (移除 @default(now()))
+
+  @@index([contextType, contextId, timestamp]) // 为查询和清理日志添加索引
+ }
+
+// Model for storing QQ Friends
+model Friend {
+  id        Int      @id @default(autoincrement()) // Optional internal ID
+  userId    String   @unique @map("user_id")       // QQ 号 (Unique identifier)
+  nickname  String                                 // 昵称
+  remark    String?                                // 备注 (Optional)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("friends") // Optional: map to a specific table name
+}
+
+// Model for storing QQ Groups
+model Group {
+  id        Int      @id @default(autoincrement()) // Optional internal ID
+  groupId   String   @unique @map("group_id")      // 群号 (Unique identifier)
+  groupName String   @map("group_name")            // 群名称
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("groups") // Optional: map to a specific table name
+}
+
+// --- 伪装功能模型 ---
+
+// 伪装预设模型 (镜像 Preset)
+model DisguisePreset {
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  mode        String   @default("STANDARD")
+  content     Json
+
+  // --- 伪装预设专属 BOT 设置 ---
+  botName                  String?
+  botNicknames             String?
+  advancedModeMessageDelay Int      @default(1000)
+  botFuzzyMatchEnabled     Boolean  @default(false)
+  allowImageInput          Boolean  @default(false)
+  allowVoiceOutput         Boolean  @default(false)
+  // --- 新增的四种触发方式控制 ---
+  nameTriggered            Boolean  @default(false) // 是否允许通过名称触发
+  nicknameTriggered        Boolean  @default(false) // 是否允许通过昵称触发
+  atTriggered              Boolean  @default(false) // 是否允许通过@触发
+  replyTriggered           Boolean  @default(false) // 是否允许通过回复触发
+  // --- 结束伪装预设专属 BOT 设置 ---
+
+  // --- 伪装预设专属应用及模型设置 ---
+  chatHistoryLimit         Int      @default(10)
+  messageHistoryLimit      Int      @default(10)
+  openaiApiKey             String?
+  openaiBaseUrl            String?
+  openaiModel              String   @default("gpt-3.5-turbo")
+  // --- 结束伪装预设专属应用及模型设置 ---
+
+  // --- 伪装预设专属联网设置 ---
+  allowWebSearch           Boolean  @default(false) // 是否允许联网搜索
+  webSearchApiKey          String?                 // 联网搜索 API Key (可选，独立于模型设置)
+  webSearchBaseUrl         String?                 // 联网搜索 Base URL (可选，独立于模型设置)
+  webSearchModel           String   @default("gemini-2.0-flash") // 联网搜索模型名称
+  webSearchSystemPrompt    String?                 // 新增：伪装级联网搜索系统提示词 (可选)
+  // --- 结束伪装预设专属联网设置 ---
+
+  // --- 新增：高级触发设置 (同 Preset) ---
+  timedTriggerEnabled           Boolean  @default(false)
+  timedTriggerInterval          Int?
+  quantitativeTriggerEnabled    Boolean  @default(false)
+  quantitativeTriggerThreshold  Int?
+  
+  aiTriggerEnabled              Boolean  @default(false)
+  aiTriggerApiKey               String?
+  aiTriggerBaseUrl              String?
+  aiTriggerModel                String?  @default("gpt-3.5-turbo")
+  aiTriggerKeyword              String?
+  aiTriggerKeywordFuzzyMatch    Boolean  @default(false) // 新增：AI触发关键词是否启用模糊匹配
+  aiTriggerSystemPrompt         String?
+  aiTriggerUserPrompt           String?
+  // --- 结束高级触发设置 ---
+
+  assignments DisguisePresetAssignment[] // 关联到伪装预设分配
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("disguise_presets") // 映射到不同的表名
+}
+
+// 伪装预设分配模型 (镜像 PresetAssignment)
+// 注意：这里仍然使用通用的 AssignmentType 枚举
+model DisguisePresetAssignment {
+  id             Int            @id @default(autoincrement())
+  assignmentType AssignmentType // 分配类型 (全局, 私聊, 群聊)
+  contextId      String?        // 上下文 ID (QQ 号或群号)，全局时为 null
+  presetId       Int            // 关联的伪装预设 ID
+  preset         DisguisePreset @relation(fields: [presetId], references: [id], onDelete: Cascade) // 关联到 DisguisePreset 模型
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([assignmentType, contextId]) // 确保每个上下文只有一种伪装分配
+  @@map("disguise_assignments") // 映射到不同的表名
+}
+
+// --- 自定义变量模型 ---
+
+// 全局变量模型
+model GlobalVariable {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique // 变量名称，需唯一
+  value     String   // 变量值 (存储为字符串)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("global_variables")
+}
+
+// Definition of a local variable template
+model LocalVariableDefinition {
+  id           Int      @id @default(autoincrement())
+  name         String   @unique // Globally unique definition name
+  defaultValue String   // Default value for this variable definition
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  instances    LocalVariableInstance[] // Relation to all instances of this definition
+
+  @@map("local_variable_definitions")
+}
+
+// Represents an instance of a local variable in a specific context
+model LocalVariableInstance {
+  id           Int      @id @default(autoincrement())
+  definitionId Int      // Foreign key to LocalVariableDefinition
+  definition   LocalVariableDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade) // onDelete: Cascade means deleting a definition also deletes its instances
+  value        String   // Actual value of the variable in this context
+  contextType  ContextType // PRIVATE or GROUP
+  contextId    String   // QQ number for PRIVATE, Group number for GROUP
+  userId       String   // QQ number of the user who this variable instance belongs to
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([definitionId, contextType, contextId, userId]) // An instance is unique for a definition within a specific context
+  @@index([definitionId, contextType, contextId, userId]) // Index for querying instances
+  @@map("local_variable_instances")
+}

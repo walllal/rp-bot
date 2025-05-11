@@ -1,0 +1,1071 @@
+/* General body and theme styles */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    line-height: 1.6;
+    color: var(--pico-text-color); /* Use Pico variable */
+    background-color: var(--pico-background-color); /* Use Pico variable */
+    margin: 0;
+    padding: 0;
+    overflow-y: scroll !important; /* 强制始终显示滚动条 */
+}
+
+.container {
+    max-width: 1200px; /* Increased max-width for wider layout */
+    margin: 2rem auto;
+    padding: 1rem;
+}
+
+/* Pico overrides and enhancements */
+:root {
+    /* Example: Customizing Pico primary color (optional) */
+    /* --pico-primary: #007bff; */
+}
+
+/* Headings */
+h1, h2, h3, h4 {
+    color: var(--pico-h1-color); /* Use Pico variable */
+    margin-bottom: 0.75rem;
+}
+
+/* Buttons */
+button, input[type="submit"], input[type="button"] {
+    /* Pico handles button styling well, add specific overrides if needed */
+}
+
+/* Tables */
+table {
+    width: 100%;
+    margin-bottom: 1rem;
+    border-collapse: collapse; /* Ensure borders are clean */
+}
+th, td {
+    padding: 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--pico-table-border-color); /* Use Pico variable */
+}
+thead th {
+    background-color: var(--pico-table-header-background); /* Use Pico variable */
+    color: var(--pico-table-header-color); /* Use Pico variable */
+}
+
+/* Forms */
+form label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+}
+form input[type="text"],
+form input[type="number"],
+form input[type="password"],
+form input[type="url"],
+form select,
+form textarea {
+    width: 100%;
+    padding: 0.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid var(--pico-form-element-border-color); /* Use Pico variable */
+    border-radius: var(--pico-border-radius); /* Use Pico variable */
+    background-color: var(--pico-form-element-background-color); /* Use Pico variable */
+    color: var(--pico-form-element-color); /* Use Pico variable */
+}
+
+/* Dialog (Modal) Styling */
+dialog {
+    border: 1px solid var(--pico-card-border-color); /* Use Pico variable */
+    border-radius: var(--pico-card-border-radius); /* Use Pico variable */
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2); /* 增强阴影效果，使其与添加消息弹窗一致 */
+    padding: 0; /* Remove default padding, article will handle it */
+    width: auto; /* 让宽度根据内容自动调整 */
+    max-width: 90vw; /* 默认最大宽度为视窗的90% */
+}
+dialog article {
+    padding: 1.5rem; /* Add padding to article inside dialog */
+}
+dialog header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--pico-muted-border-color); /* Use Pico variable */
+    margin-bottom: 1rem;
+}
+dialog header h3 {
+    margin-bottom: 0;
+}
+dialog footer {
+    padding-top: 1rem;
+    border-top: 1px solid var(--pico-muted-border-color); /* Use Pico variable */
+    margin-top: 1rem;
+    display: flex;
+    justify-content: flex-end; /* Align buttons to the right */
+    gap: 0.5rem;
+}
+
+/* Preset Editor List Specific Styles */
+.preset-editor-list {
+    border: 1px solid var(--pico-muted-border-color);
+    padding: 0.5rem;
+    min-height: 300px; /* 增加最小高度 */
+    max-height: 600px; /* 增加最大高度 */
+    overflow-y: auto; /* Enable vertical scroll if content exceeds max-height */
+    background-color: var(--pico-card-background-color); /* Slightly different background */
+    border-radius: var(--pico-border-radius);
+    margin-bottom: 0.5rem; /* Space before the help text */
+}
+
+/* 彻底修复预设项目的布局问题 */
+.preset-item {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center; 
+    padding: 0.25rem 0.5rem;
+    border-bottom: 1px dashed var(--pico-muted-border-color);
+    background-color: var(--pico-background-color);
+    margin-bottom: 0.25rem;
+    border-radius: var(--pico-border-radius);
+    line-height: 1.2;
+    min-height: 40px;
+}
+.preset-item:last-child {
+    border-bottom: none;
+}
+.preset-item.disabled {
+    opacity: 0.6;
+    background-color: var(--pico-del-color-background); /* Use a subtle disabled background */
+}
+.preset-item-handle {
+    cursor: grab;
+    padding: 0 0.75rem;
+    font-size: 1.2em;
+    color: var(--pico-text-color); /* 修改颜色为与其他文字相同的颜色 */
+}
+.preset-item-summary {
+    flex-grow: 1;
+    padding: 0 0.5rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 40px;
+}
+.preset-item-summary .item-type {
+    font-weight: bold;
+    font-size: 0.9em;
+    color: var(--pico-h6-color);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.preset-item-summary .item-preview {
+    font-size: 0.85em;
+    color: var(--pico-muted-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 300px; /* Adjust as needed */
+}
+
+/* 重写按钮样式，使用更基础的样式代替现有样式 */
+.preset-item-actions {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 5px;
+    min-width: 160px;
+    height: 40px;
+}
+
+.preset-item-actions .btn-sm {
+    box-sizing: border-box;
+    height: 28px;
+    min-width: 42px;
+    padding: 0 8px;
+    line-height: 1;
+    font-size: 0.85em;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+    border-radius: 4px;
+}
+
+/* 重设开关按钮样式 */
+.preset-item-actions input[type="checkbox"][role="switch"] {
+    box-sizing: border-box;
+    margin: 0;
+    height: 28px;
+}
+
+/* SortableJS Ghost Class */
+.sortable-ghost {
+    opacity: 0.4;
+    background-color: var(--pico-primary-background); /* Highlight color for ghost */
+}
+
+/* Preset Editor Controls */
+.preset-editor-controls {
+    display: flex;
+    gap: 0.5rem; /* Space between control buttons */
+    margin-bottom: 1rem; /* Space below controls */
+    flex-wrap: wrap; /* Allow buttons to wrap on smaller screens */
+}
+.preset-editor-controls .btn-sm {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.85em;
+}
+
+/* History Output Styling */
+#history-output, #message-history-output {
+    border: 1px solid var(--pico-muted-border-color);
+    padding: 1rem;
+    max-height: 500px;
+    overflow-y: auto;
+    background-color: var(--pico-card-background-color);
+    border-radius: var(--pico-border-radius);
+}
+.message-history-item { /* Shared class for history and message history items */
+    padding: 0.75rem;
+    border-bottom: 1px dashed var(--pico-muted-border-color);
+    margin-bottom: 0.5rem;
+}
+.message-history-item:last-child {
+    border-bottom: none;
+}
+.message-history-item small {
+    display: block;
+    color: var(--pico-muted-color);
+    margin-bottom: 0.25rem;
+    font-size: 0.8em;
+}
+.message-history-item p {
+    margin: 0;
+    word-break: break-word; /* Prevent long strings from breaking layout */
+}
+
+/* Access Control List Styling */
+.access-control-list {
+    list-style-type: none;
+    padding-left: 0;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid var(--pico-muted-border-color);
+    padding: 0.5rem;
+    border-radius: var(--pico-border-radius);
+}
+.access-control-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.3rem 0;
+    border-bottom: 1px dashed var(--pico-muted-border-color);
+}
+.access-control-list li:last-child {
+    border-bottom: none;
+}
+.access-control-list .btn-sm {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75em;
+}
+.switch-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+}
+.switch-label input[role="switch"] {
+    margin-right: 0.3rem;
+}
+
+/* 修复历史页面的删除按钮布局 */
+.history-form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 1rem;
+}
+.history-form-group label {
+    margin-bottom: 0.25rem; /* Smaller margin for label in group */
+}
+
+/* Navigation Tabs */
+#main-nav {
+    display: flex;
+    justify-content: space-between; /* Pushes settings/plugins to the right */
+    border-bottom: 2px solid var(--pico-primary-focus);
+    margin-bottom: 1.5rem;
+}
+#main-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+}
+#main-nav li {
+    margin-right: 0.25rem; /* Small gap between buttons */
+}
+#main-nav .nav-button {
+    background-color: transparent;
+    border: none;
+    border-bottom: 3px solid transparent;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    color: var(--pico-muted-color);
+    font-weight: 500;
+    border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0; /* Rounded top corners */
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+#main-nav .nav-button:hover {
+    color: var(--pico-primary-hover);
+    border-bottom-color: var(--pico-primary-hover);
+}
+#main-nav .nav-button.active {
+    color: var(--pico-primary);
+    border-bottom-color: var(--pico-primary);
+    font-weight: bold;
+}
+
+/* Tab Content Styling */
+.tab-content {
+    display: none; /* Hide all tabs by default */
+}
+.tab-content.active {
+    display: block; /* Show active tab */
+}
+
+/* 分类二级导航样式 */
+.category-sub-nav {
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+}
+.category-sub-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 0.5rem; /* Gap between sub-nav buttons */
+}
+.category-sub-nav .nav-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9em;
+    border-bottom-width: 2px; /* Thinner border for sub-nav */
+}
+.category-sub-nav .nav-button.active {
+    background-color: var(--pico-primary); /* 使用主色调 */
+    color: white;
+    border-color: var(--pico-primary);
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 添加阴影增强视觉效果 */
+    transform: translateY(-1px); /* 轻微上移，增加浮动感 */
+}
+
+/* 新增：使开关在二级导航中靠右 */
+.category-sub-nav ul .nav-switch {
+    margin-left: auto; /* Push the switch to the right */
+    display: flex;      /* Ensure label inside aligns correctly */
+    align-items: center; /* Vertically center the switch label */
+    padding-right: 0.5rem; /* Add some padding on the right */
+}
+
+/* 子分类内容容器 */
+.sub-content-container {
+    width: 100%;
+}
+
+/* 子页面内容样式 */
+.sub-tab-content {
+    display: none; /* 默认隐藏所有子页面 */
+}
+.sub-tab-content.active {
+    display: block; /* 显示活动的子页面 */
+}
+
+/* 新增：功能禁用时的样式 */
+.feature-disabled {
+    opacity: 0.5;
+    pointer-events: none; /* 禁止鼠标事件 */
+}
+/* 确保禁用状态下表单元素也显示禁用 */
+.feature-disabled input,
+.feature-disabled select,
+.feature-disabled textarea,
+.feature-disabled button {
+    cursor: not-allowed; /* 显示禁用光标 */
+}
+
+/* Settings Sub-Navigation */
+.settings-sub-nav {
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+}
+.settings-sub-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 0.5rem; /* Gap between sub-nav buttons */
+}
+.settings-sub-nav .nav-button { /* Re-use .nav-button styling but make it secondary */
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9em;
+    border-bottom-width: 2px; /* Thinner border for sub-nav */
+}
+.settings-sub-nav .nav-button.active {
+    background-color: var(--pico-primary); /* 使用主色调 */
+    color: white;
+    border-color: var(--pico-primary);
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); /* 添加阴影增强视觉效果 */
+    transform: translateY(-1px); /* 轻微上移，增加浮动感 */
+}
+.settings-sub-tab {
+    display: none;
+}
+.settings-sub-tab.active {
+    display: block;
+}
+
+/* Debug Output Styling */
+#debug-output pre, #debug-voice-output pre {
+    background-color: var(--pico-code-background);
+    padding: 1rem;
+    border-radius: var(--pico-border-radius);
+    max-height: 300px;
+    overflow: auto;
+    color: var(--pico-code-color);
+}
+
+/* Plugin List Styling */
+#plugins-list article {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    border: 1px solid var(--pico-card-border-color);
+    border-radius: var(--pico-card-border-radius);
+}
+#plugins-list article header {
+    padding-bottom: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+}
+#plugins-list article footer {
+    margin-top: 1rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--pico-muted-border-color);
+    display: flex; /* Align items in footer */
+    align-items: center;
+}
+
+/* Wider Modal for Preset Editor and Disguise Editor - 使用更高优先级的选择器和强制样式 */
+html body main dialog#preset-modal,
+html body main dialog#disguise-preset-modal {
+    width: calc(90vw - 17px) !important; /* 减去滚动条宽度 */
+    max-width: calc(1400px - 17px) !important; /* 减去滚动条宽度 */
+    min-height: 85vh !important; /* 增加最小高度 */
+    max-height: 90vh !important; /* 限制最大高度 */
+    overflow-x: hidden !important; /* 防止水平滚动 */
+}
+
+/* 强制dialog内部元素样式 */
+html body main dialog#preset-modal article,
+html body main dialog#disguise-preset-modal article {
+    height: 100% !important; /* 让内容填满整个弹窗 */
+    width: 100% !important; /* 确保宽度填满 */
+    max-width: none !important; /* 移除任何最大宽度限制 */
+}
+
+html body main dialog#preset-modal article > form,
+html body main dialog#disguise-preset-modal article > form {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100% - 4rem) !important; /* 减去header和footer的高度 */
+    width: 100% !important; /* 确保宽度填满 */
+}
+
+/* Attempt to hide extra 'x' in dialog footers */
+dialog > article > footer::before,
+dialog > article > footer::after {
+    content: none !important;
+    display: none !important;
+}
+
+.preset-editor-columns {
+    display: flex;
+    flex-direction: row;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    flex: 1; /* 让内容区域扩展填满可用空间 */
+    min-height: 500px; /* 设置最小高度 */
+}
+
+.preset-editor-left-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.preset-editor-right-column {
+    flex: 2; /* 使右侧列表区域占据更多空间 */
+    display: flex;
+    flex-direction: column;
+}
+
+.preset-editor-right-column .preset-editor-list {
+    flex: 1; /* 让列表填满右侧列的可用空间 */
+    max-height: none; /* 移除最大高度限制，让它填满容器 */
+    min-height: 500px; /* 设置合适的最小高度 */
+}
+
+/* 修改响应式布局 */
+@media (max-width: 768px) {
+    dialog#preset-modal {
+        width: 95vw;
+        max-width: none;
+        min-height: 95vh;
+    }
+
+    .preset-editor-columns {
+        flex-direction: column;
+        min-height: auto;
+    }
+
+    .preset-editor-left-column,
+    .preset-editor-right-column {
+        flex: none;
+        width: 100%;
+    }
+
+    .preset-editor-right-column .preset-editor-list {
+        min-height: 300px;
+    }
+}
+
+/* 设置弹窗与编辑弹窗相同的样式 */
+html body main dialog#preset-settings-modal,
+html body main dialog#disguise-preset-settings-modal {
+    width: calc(90vw - 17px) !important; /* 减去滚动条宽度 */
+    max-width: calc(1400px - 17px) !important; /* 减去滚动条宽度 */
+    min-height: 85vh !important; /* 增加最小高度 */
+    max-height: 90vh !important; /* 限制最大高度 */
+    overflow-x: hidden !important; /* 防止水平滚动 */
+}
+
+html body main dialog#preset-settings-modal article,
+html body main dialog#disguise-preset-settings-modal article {
+    height: 100% !important; /* 让内容填满整个弹窗 */
+    width: 100% !important; /* 确保宽度填满 */
+    max-width: none !important; /* 移除任何最大宽度限制 */
+}
+
+html body main dialog#preset-settings-modal article > form,
+html body main dialog#disguise-preset-settings-modal article > form {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100% - 4rem) !important; /* 减去header和footer的高度 */
+    width: 100% !important; /* 确保宽度填满 */
+}
+
+/* 优化设置弹窗内部布局 */
+html body main dialog#preset-settings-modal article > form > div,
+html body main dialog#disguise-preset-settings-modal article > form > div {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0.5rem;
+}
+
+html body main dialog#preset-settings-modal .grid,
+html body main dialog#disguise-preset-settings-modal .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+}
+
+/* 确保表单元素布局合理 */
+html body main dialog#preset-settings-modal input[type="text"],
+html body main dialog#preset-settings-modal input[type="number"],
+html body main dialog#disguise-preset-settings-modal input[type="text"],
+html body main dialog#disguise-preset-settings-modal input[type="number"] {
+    width: 100%;
+    max-width: 100%;
+}
+
+/* 完全删除所有开关按钮相关的自定义样式 */
+form input[type="checkbox"][role="switch"] {
+    /* 删除所有自定义样式，仅依赖Pico CSS默认样式 */
+}
+
+input[type="checkbox"][role="switch"] {
+    /* 删除所有自定义样式，仅依赖Pico CSS默认样式 */
+}
+
+input[type="checkbox"][role="switch"]:checked {
+    /* 删除所有自定义样式，仅依赖Pico CSS默认样式 */
+}
+
+input[type="checkbox"][role="switch"]::before {
+    /* 删除所有自定义样式，仅依赖Pico CSS默认样式 */
+}
+
+/* 修复对话历史和消息历史页面的布局 */
+#history-section form,
+#message-history-section form {
+    margin-bottom: 1rem;
+}
+
+#history-section .grid,
+#message-history-section .grid {
+    margin-bottom: 0.5rem;
+}
+
+/* 输入组样式 - 完全重写，避免重复规则 */
+.input-group {
+    display: flex !important;
+    align-items: stretch !important; /* 确保所有子元素拉伸到相同高度 */
+}
+
+.input-group input[type="number"] {
+    flex: 1;
+    margin-bottom: 0;
+    border-right: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* 所有按钮的基础样式 */
+.input-group button,
+.input-group button[type="submit"],
+.input-group button[type="button"],
+#delete-history-btn,
+#delete-message-history-btn {
+    height: 52.5px !important; /* 使用固定高度而非最小高度 */
+    min-height: 52.5px !important;
+    max-height: 52.5px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 8px 0 !important;
+    font-size: 0.9em !important;
+    line-height: 1.5 !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* 针对.history-form-group内的按钮单独设置 */
+.history-form-group .input-group button {
+    height: 52.5px !important;
+    min-height: 52.5px !important;
+    max-height: 52.5px !important;
+    box-sizing: border-box !important;
+    width: 60px !important;
+}
+
+/* 查询按钮样式 - 蓝色背景 - 完全限定选择器 */
+#history-filter-form button[type="submit"],
+#message-history-filter-form button[type="submit"],
+button#delete-history-btn.contrast,
+button#delete-message-history-btn.contrast,
+.history-form-group .input-group button,
+.input-group button[type="submit"],
+.input-group button[type="button"] {
+    height: 52.5px !important; /* 使用固定高度而非最小高度 */
+    min-height: 52.5px !important;
+    max-height: 52.5px !important;
+    box-sizing: border-box !important;
+    margin: 0 !important;
+    padding: 8px 0 !important;
+    font-size: 0.9em !important;
+    line-height: 1.5 !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    overflow: visible !important;
+    width: 60px !important;
+    vertical-align: middle !important;
+}
+
+/* 查询按钮样式 - 蓝色背景 */
+#history-filter-form button[type="submit"],
+#message-history-filter-form button[type="submit"] {
+    background-color: var(--pico-primary) !important;
+    border-color: var(--pico-primary) !important;
+    color: white !important;
+    font-weight: normal !important;
+}
+
+/* 删除按钮样式 - 红色背景 */
+button#delete-history-btn.contrast,
+button#delete-message-history-btn.contrast {
+    background-color: #e74c3c !important;
+    border-color: #e74c3c !important;
+    color: white !important;
+    font-weight: normal !important;
+}
+
+/* 自定义链接样式按钮 */
+.custom-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 28px;
+    min-width: 42px;
+    padding: 0 8px;
+    margin: 0;
+    border-radius: 4px;
+    text-decoration: none;
+    font-size: 0.85em;
+    line-height: 1;
+    border: 1px solid var(--pico-muted-border-color);
+    color: var(--pico-text-color);
+    box-sizing: border-box;
+    text-align: center;
+    white-space: nowrap;
+    cursor: pointer;
+}
+
+.custom-btn.delete-btn {
+    background-color: rgba(231, 76, 60, 0.1);
+    border-color: rgba(231, 76, 60, 0.5);
+    color: #e74c3c;
+}
+
+.custom-btn.delete-btn:hover {
+    background-color: rgba(231, 76, 60, 0.2);
+    border-color: #e74c3c;
+}
+
+.custom-btn.edit-btn {
+    background-color: rgba(52, 152, 219, 0.1);
+    border-color: rgba(52, 152, 219, 0.5);
+    color: #3498db;
+}
+
+.custom-btn.edit-btn:hover {
+    background-color: rgba(52, 152, 219, 0.2);
+    border-color: #3498db;
+}
+
+/* 移除针对特定ID输入框的固定高度，以允许select元素自然高度 */
+/*
+#assignment-context-id,
+#history-context-id,
+#message-history-context-id {
+    height: 52.5px !important;
+    min-height: 52.5px !important;
+    max-height: 52.5px !important;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+    display: flex;
+    align-items: center;
+}
+*/
+
+/* 通用规则统一 assignment-form 内 select 样式 */
+#assignment-form .grid label > select {
+    width: 100%; /* 确保宽度填充 */
+    box-sizing: border-box; /* 包含 padding 和 border */
+    margin-bottom: 1rem; /* 保持与其他表单元素一致的下边距 */
+    /* 移除固定高度，让其自然适应 */
+    /* vertical-align: middle; */ /* 如果垂直对齐仍有问题，可以取消注释此行 */
+}
+
+/* 可选：如果需要，也可以统一该表单内 input 的样式 */
+/*
+#assignment-form .grid label > input[type="text"] {
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 1rem;
+}
+*/
+
+/* 统一对话历史和消息历史页面的输入框和按钮高度 */
+#history-limit,
+#message-history-limit,
+#history-delete-count,
+#message-history-delete-count,
+.input-group input[type="number"],
+.input-group input[type="text"] {
+    height: auto;
+    box-sizing: border-box;
+    padding: 8px 12px;
+    margin-bottom: 1rem;
+    line-height: 1.5;
+    min-height: 52.5px; /* 精确匹配下拉框的52.5px高度 */
+}
+
+/* 统一按钮高度 */
+#history-filter-form button[type="submit"],
+#message-history-filter-form button[type="submit"],
+#delete-history-btn,
+#delete-message-history-btn {
+    min-height: 52.5px; /* 精确匹配下拉框的52.5px高度 */
+    box-sizing: border-box;
+    line-height: 1.5;
+    padding: 8px 12px;
+}
+
+/* 添加媒体查询以适应小屏幕 */
+@media (max-width: 576px) {
+    .grid {
+        grid-template-columns: 1fr; /* 在小屏幕上单列显示 */
+    }
+    
+    .input-group {
+        width: 100%;
+    }
+
+    .input-group button {
+        padding-left: 0.5rem;
+        padding-right: 0.5rem;
+    }
+}
+
+/* 访问控制页面标题和开关居中 */
+#private-whitelist-heading,
+#private-blacklist-heading,
+#group-whitelist-heading,
+#group-blacklist-heading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    text-align: center;
+}
+
+/* 开关标签样式调整 */
+.switch-label {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0;
+}
+
+/* 开关状态文本样式 */
+.switch-status {
+    margin-left: 5px;
+    font-size: 0.9em;
+    font-weight: normal;
+    transition: color 0.3s ease;
+}
+
+/* 根据开关状态应用不同样式 */
+.switch-label input[role="switch"]:checked ~ .switch-status {
+    color: var(--pico-primary);
+    font-weight: bold;
+}
+
+.switch-label input[role="switch"]:not(:checked) ~ .switch-status {
+    color: var(--pico-muted-color);
+}
+
+/* 去除kbd标签的背景和边框样式 */
+kbd {
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    color: inherit !important;
+    font-family: inherit !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    font-weight: normal !important;
+    border-radius: 0 !important;
+}
+
+/* 修改预设/伪装条目编辑弹窗使其与主编辑预设弹窗样式一致 */
+html body main dialog#preset-item-edit-modal,
+html body main dialog#disguise-preset-item-edit-modal {
+    width: calc(90vw - 17px) !important; /* 减去滚动条宽度 */
+    max-width: calc(1400px - 17px) !important; /* 减去滚动条宽度 */
+    min-height: 85vh !important; /* 增加最小高度 */
+    max-height: 90vh !important; /* 限制最大高度 */
+    overflow-x: hidden !important; /* 防止水平滚动 */
+}
+
+html body main dialog#preset-item-edit-modal article,
+html body main dialog#disguise-preset-item-edit-modal article {
+    height: 100% !important; /* 让内容填满整个弹窗 */
+    width: 100% !important; /* 确保宽度填满 */
+    max-width: none !important; /* 移除任何最大宽度限制 */
+}
+
+html body main dialog#preset-item-edit-modal article > form,
+html body main dialog#disguise-preset-item-edit-modal article > form {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100% - 4rem) !important; /* 减去header和footer的高度 */
+    width: 100% !important; /* 确保宽度填满 */
+}
+
+html body main dialog#preset-item-edit-modal #edit-item-fields,
+html body main dialog#disguise-preset-item-edit-modal #disguise-edit-item-fields {
+    flex: 1 !important; /* 让编辑区域填充可用空间 */
+    overflow-y: auto !important; /* 内容过多时允许滚动 */
+    padding: 1rem !important;
+}
+
+/* 修改添加消息弹窗使其与编辑消息弹窗样式一致 */
+html body main dialog#preset-add-item-modal,
+html body main dialog#disguise-preset-add-item-modal {
+    width: calc(90vw - 17px) !important; /* 减去滚动条宽度 */
+    max-width: calc(1400px - 17px) !important; /* 减去滚动条宽度 */
+    min-height: 85vh !important; /* 增加最小高度 */
+    max-height: 90vh !important; /* 限制最大高度 */
+    overflow-x: hidden !important; /* 防止水平滚动 */
+}
+
+html body main dialog#preset-add-item-modal article,
+html body main dialog#disguise-preset-add-item-modal article {
+    height: 100% !important; /* 让内容填满整个弹窗 */
+    width: 100% !important; /* 确保宽度填满 */
+    max-width: none !important; /* 移除任何最大宽度限制 */
+}
+
+html body main dialog#preset-add-item-modal article > form,
+html body main dialog#disguise-preset-add-item-modal article > form {
+    display: flex !important;
+    flex-direction: column !important;
+    height: calc(100% - 4rem) !important; /* 减去header和footer的高度 */
+    width: 100% !important; /* 确保宽度填满 */
+}
+
+html body main dialog#preset-add-item-modal #add-item-fields,
+html body main dialog#disguise-preset-add-item-modal #disguise-add-item-fields {
+    flex: 1 !important; /* 让编辑区域填充可用空间 */
+    overflow-y: auto !important; /* 内容过多时允许滚动 */
+    padding: 1rem !important;
+}
+
+/* 调整添加消息弹窗的文本域样式 */
+html body main dialog#preset-add-item-modal #add-item-content,
+html body main dialog#disguise-preset-add-item-modal #add-item-content { /* Note: disguise uses #add-item-content ID */
+    min-height: 500px !important; /* 设置更大的最小高度 */
+    height: 60vh !important; /* 使用视口高度作为参考 */
+    width: 100% !important; /* 确保宽度填满容器 */
+    box-sizing: border-box !important; /* 确保padding和border包含在宽高中 */
+    resize: vertical !important; /* 只允许垂直方向调整大小 */
+    font-size: 1rem !important; /* 设置合适的字体大小 */
+    line-height: 1.5 !important; /* 设置行高 */
+    padding: 0.75rem !important; /* 增加内边距 */
+}
+
+/* 重命名按钮样式 */
+.rename-btn {
+    background: none;
+    border: none;
+    font-size: 0.9em;
+    padding: 0;
+    margin: 0 0 0 4px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    visibility: hidden; /* 默认隐藏，鼠标悬停时显示 */
+    color: var(--pico-primary-hover);
+}
+
+.preset-item:hover .rename-btn {
+    visibility: visible; /* 鼠标悬停在项目上时显示重命名按钮 */
+}
+
+.rename-btn:hover {
+    opacity: 1;
+    color: var(--pico-primary);
+    transform: scale(1.1);
+}
+
+/* 重命名输入框样式 */
+.rename-input {
+    font-size: 0.9em;
+    padding: 2px 4px;
+    margin: 0;
+    border: 1px solid var(--pico-muted-border-color);
+    border-radius: 3px;
+    width: auto;
+    min-width: 100px;
+    height: auto;
+    display: inline-block;
+}
+
+/* Settings Modal Sub-Navigation Styles (Aligned with .category-sub-nav and .settings-sub-nav) */
+.settings-modal-sub-nav {
+    margin-bottom: 1.5rem;
+    border-bottom: 1px solid var(--pico-muted-border-color);
+    padding-bottom: 0; /* Align with how main sub-navs handle bottom border */
+}
+
+.settings-modal-sub-nav ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    gap: 0.5rem; /* Gap between sub-nav buttons */
+}
+
+/* Use similar base styling as .category-sub-nav .nav-button */
+.settings-modal-sub-nav .nav-button {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9em;
+    border: 1px solid transparent; /* Start with transparent border */
+    border-bottom: 2px solid transparent; /* Base for active state */
+    border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0;
+    background-color: transparent;
+    color: var(--pico-muted-color);
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.settings-modal-sub-nav .nav-button:hover {
+    color: var(--pico-primary-hover);
+    border-bottom-color: var(--pico-primary-hover);
+}
+
+.settings-modal-sub-nav .nav-button.active {
+    background-color: var(--pico-primary); /* Use primary color for active background */
+    color: var(--pico-primary-inverse); /* Pico's variable for text on primary background */
+    border-color: var(--pico-primary); /* Match border with background */
+    border-bottom-color: var(--pico-primary); /* Ensure bottom border is also primary */
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transform: translateY(-1px); /* Slight lift */
+    position: relative; /* Needed for translateY and to ensure proper layering if any */
+}
+
+.settings-modal-content-container {
+    padding-top: 0; /* 移除或减小此处的 padding-top */
+}
+
+.settings-modal-tab-content {
+    /* display: none; is handled by JS initially */
+}
+
+.settings-modal-tab-content.active {
+    display: block;
+}
+
+/* Settings Sub-Navigation Logout Button */
+.settings-sub-nav ul .logout-button-settings {
+    background-color: #f8d7da; /* Light red background */
+    border-color: #f5c6cb; /* Slightly darker red border */
+    color: #721c24; /* Dark red text for contrast */
+    padding: 0.5rem 0.75rem; /* Match other sub-nav buttons */
+    font-size: 0.9em; /* Match other sub-nav buttons */
+    border-radius: var(--pico-border-radius); /* Standard Pico border radius */
+    cursor: pointer;
+    transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+    /* margin-left: auto; /* This is handled by li style="margin-left: auto;" in HTML */
+}
+
+.settings-sub-nav ul .logout-button-settings:hover {
+    background-color: #f1b0b7; /* Darker shade on hover */
+    border-color: #ee9ca7;
+    color: #721c24;
+}

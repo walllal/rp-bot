@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RP Bot 管理面板</title>
+    <!-- Pico.css -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"/>
+    <!-- SweetAlert2 CSS (Local) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+    <!-- SortableJS via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <main class="container">
+        <h1 style="text-align: center;">RP Bot 管理面板</h1>
+
+        <!-- Navigation Tabs -->
+        <nav id="main-nav">
+            <ul>
+                <li><button class="contrast nav-button active" data-target="tab-content-preset-category">预设</button></li>
+                <li><button class="contrast nav-button" data-target="tab-content-disguise-category">伪装</button></li> <!-- Moved Disguise Tab -->
+                <li><button class="contrast nav-button" data-target="tab-content-history-category">历史</button></li>
+                <li><button class="contrast nav-button" data-target="tab-content-variables-category">变量</button></li> <!-- +++ 新增变量导航项 +++ -->
+                <li><button class="contrast nav-button" data-target="tab-content-access-control">访问控制</button></li>
+                <!-- 调试按钮已移至设置子导航 -->
+            </ul>
+            <ul>
+                <li><button class="contrast nav-button" data-target="tab-content-plugins">插件</button></li> <!-- 新增插件按钮 -->
+                <li><button class="contrast nav-button" data-target="tab-content-settings">设置</button></li>
+            </ul>
+        </nav>
+
+        <!-- 预设分类内容 -->
+        <div id="tab-content-preset-category" class="tab-content active">
+            <!-- 预设分类的子导航 -->
+            <nav id="preset-sub-nav" class="category-sub-nav">
+                <ul>
+                    <li><button class="secondary outline nav-button active" data-target="tab-content-presets">预设管理</button></li>
+                    <li><button class="secondary outline nav-button" data-target="tab-content-assignments">预设分配</button></li>
+                    <!-- Removed Access Control Sub-Tab Button -->
+                    <li class="nav-switch"> <!-- Added class for styling -->
+                        <label class="switch-label">
+                            <input type="checkbox" id="setting-presetFeatureEnabled" name="presetFeatureEnabled" role="switch">
+                            <span class="switch-status">启用/禁用</span>
+                        </label>
+                    </li>
+                </ul>
+            </nav>
+            
+            <!-- 预设分类下的子页面容器 -->
+            <div id="preset-sub-content" class="sub-content-container">
+                <!-- 这里会动态显示子页面内容 -->
+                <div id="tab-content-presets" class="sub-tab-content active">
+                    <section id="presets-section">
+                        <h2>预设管理</h2>
+                        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+                            <button id="add-preset-btn">新增预设</button>
+                            <button id="import-presets-btn" class="secondary">导入预设</button>
+                        </div>
+                        <table id="presets-table" role="grid">
+                            <thead>
+                                <tr>
+                                    <th scope="col">名称</th>
+                                    <th scope="col">更新时间</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="3" aria-busy="true">正在加载预设列表...</td></tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+                
+                <div id="tab-content-assignments" class="sub-tab-content">
+                    <section id="assignments-section">
+                        <h2>预设分配</h2>
+                        <form id="assignment-form">
+                            <div class="grid">
+                                <label for="assignment-type">
+                                    分配类型
+                                    <select id="assignment-type" required>
+                                        <option value="GLOBAL">全局默认</option>
+                                        <option value="PRIVATE">私聊指定</option>
+                                        <option value="GROUP">群聊指定</option>
+                                 </select>
+                             </label>
+                             <label for="assignment-context-id">
+                                 QQ号/群号
+                                 <select id="assignment-context-id" required disabled> <!-- Changed to select, initially disabled -->
+                                     <option value="" disabled selected>--选择类型后加载--</option>
+                                 </select>
+                             </label>
+                                <label for="assignment-preset-id">
+                                    选择预设
+                                    <select id="assignment-preset-id" required>
+                                        <option value="">-- 请选择 --</option>
+                                    </select>
+                                </label>
+                            </div>
+                             <div class="grid">
+                                <button type="submit">设置/更新分配</button>
+                                <button type="button" id="delete-assignment-btn" class="secondary">删除此分配</button>
+                             </div>
+                        </form>
+                        <table id="assignments-table" role="grid">
+                             <thead>
+                                <tr>
+                                    <th scope="col">类型</th>
+                                    <th scope="col">QQ号/群号</th>
+                                    <th scope="col">预设名称</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                            </thead>
+                             <tbody>
+                                 <tr><td colspan="4" aria-busy="true">正在加载分配列表...</td></tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+                
+                <!-- Access Control Content Div moved out of preset-sub-content -->
+            </div>
+        </div>
+
+        <!-- Disguise Category Content (Copied and IDs modified from Preset Category) -->
+        <div id="tab-content-disguise-category" class="tab-content">
+            <!-- 伪装分类的子导航 -->
+            <nav id="disguise-preset-sub-nav" class="category-sub-nav">
+                <ul>
+                    <li><button class="secondary outline nav-button active" data-target="tab-content-disguise-presets">伪装管理</button></li>
+                    <li><button class="secondary outline nav-button" data-target="tab-content-disguise-assignments">伪装分配</button></li>
+                     <li class="nav-switch"> <!-- Added class for styling -->
+                        <label class="switch-label">
+                            <input type="checkbox" id="setting-disguiseFeatureEnabled" name="disguiseFeatureEnabled" role="switch">
+                            <span class="switch-status">启用/禁用</span>
+                        </label>
+                    </li>
+                </ul>
+            </nav>
+            
+            <!-- 伪装分类下的子页面容器 -->
+            <div id="disguise-preset-sub-content" class="sub-content-container">
+                <!-- 这里会动态显示子页面内容 -->
+                <div id="tab-content-disguise-presets" class="sub-tab-content active">
+                    <section id="disguise-presets-section">
+                        <h2>伪装管理</h2>
+                        <div style="margin-bottom: 1rem; display: flex; gap: 0.5rem;">
+                            <button id="disguise-add-preset-btn">新增伪装</button>
+                            <button id="disguise-import-presets-btn" class="secondary">导入伪装</button>
+                        </div>
+                        <table id="disguise-presets-table" role="grid">
+                            <thead>
+                                <tr>
+                                    <th scope="col">名称</th>
+                                    <th scope="col">更新时间</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="3" aria-busy="true">正在加载伪装列表...</td></tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+                
+                <div id="tab-content-disguise-assignments" class="sub-tab-content">
+                    <section id="disguise-assignments-section">
+                        <h2>伪装分配</h2>
+                        <form id="disguise-assignment-form">
+                            <div class="grid">
+                                <label for="disguise-assignment-type">
+                                    分配类型
+                                    <select id="disguise-assignment-type" required>
+                                        <option value="GLOBAL">全局默认</option>
+                                        <option value="PRIVATE">私聊指定</option>
+                                        <option value="GROUP">群聊指定</option>
+                                 </select>
+                             </label>
+                             <label for="disguise-assignment-context-id">
+                                 QQ号/群号
+                                 <select id="disguise-assignment-context-id" required disabled>
+                                     <option value="" disabled selected>--选择类型后加载--</option>
+                                 </select>
+                             </label>
+                                <label for="disguise-assignment-preset-id">
+                                    选择伪装
+                                    <select id="disguise-assignment-preset-id" required>
+                                        <option value="">-- 请选择 --</option>
+                                    </select>
+                                </label>
+                            </div>
+                             <div class="grid">
+                                <button type="submit">设置/更新分配</button>
+                                <button type="button" id="disguise-delete-assignment-btn" class="secondary">删除此分配</button>
+                             </div>
+                        </form>
+                        <table id="disguise-assignments-table" role="grid">
+                             <thead>
+                                <tr>
+                                    <th scope="col">类型</th>
+                                    <th scope="col">QQ号/群号</th>
+                                    <th scope="col">伪装名称</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                            </thead>
+                             <tbody>
+                                 <tr><td colspan="4" aria-busy="true">正在加载伪装分配列表...</td></tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            </div>
+        </div>
+        <!-- End Disguise Category Content -->
+
+        <!-- Access Control Content (Moved to top level) -->
+        <div id="tab-content-access-control" class="tab-content"> <!-- Changed class to tab-content -->
+            <section id="access-control-section">
+                <h2>访问控制 (白名单/黑名单)</h2>
+                        <p>
+                            规则说明：<br>
+                            - 黑名单优先级 > 白名单优先级。<br>
+                            - 如果启用了白名单，则只允许白名单内的 ID 访问 (除非该 ID 在黑名单中)。<br>
+                            - 如果未启用白名单，则允许所有不在黑名单中的 ID 访问。<br>
+                            - 私聊和群组的名单独立判断。
+                        </p>
+                        <div class="grid">
+                            <article>
+                                <h3 id="private-whitelist-heading">
+                                    私聊白名单 (<span id="private-whitelist-count">0</span>)
+                                    <label class="switch-label">
+                                        <input type="checkbox" id="setting-privateWhitelistEnabled" name="privateWhitelistEnabled" role="switch"> <span class="switch-status">启用/禁用</span>
+                                    </label>
+                                </h3>
+                                <form class="access-control-form" data-type="PRIVATE_WHITELIST">
+                                    <input type="text" placeholder="输入 QQ 号" required pattern="\d+">
+                                    <button type="submit">添加</button>
+                                </form>
+                                <ul id="private-whitelist" class="access-control-list"><li>加载中...</li></ul>
+                            </article>
+                            <article>
+                                <h3 id="private-blacklist-heading">
+                                    私聊黑名单 (<span id="private-blacklist-count">0</span>)
+                                     <label class="switch-label">
+                                        <input type="checkbox" id="setting-privateBlacklistEnabled" name="privateBlacklistEnabled" role="switch"> <span class="switch-status">启用/禁用</span>
+                                    </label>
+                                </h3>
+                                 <form class="access-control-form" data-type="PRIVATE_BLACKLIST">
+                                    <input type="text" placeholder="输入 QQ 号" required pattern="\d+">
+                                    <button type="submit">添加</button>
+                                </form>
+                                <ul id="private-blacklist" class="access-control-list"><li>加载中...</li></ul>
+                            </article>
+                        </div>
+                         <div class="grid">
+                             <article>
+                                <h3 id="group-whitelist-heading">
+                                    群组白名单 (<span id="group-whitelist-count">0</span>)
+                                     <label class="switch-label">
+                                        <input type="checkbox" id="setting-groupWhitelistEnabled" name="groupWhitelistEnabled" role="switch"> <span class="switch-status">启用/禁用</span>
+                                    </label>
+                                </h3>
+                                 <form class="access-control-form" data-type="GROUP_WHITELIST">
+                                    <input type="text" placeholder="输入群号" required pattern="\d+">
+                                    <button type="submit">添加</button>
+                                </form>
+                                <ul id="group-whitelist" class="access-control-list"><li>加载中...</li></ul>
+                            </article>
+                            <article>
+                                <h3 id="group-blacklist-heading">
+                                    群组黑名单 (<span id="group-blacklist-count">0</span>)
+                                     <label class="switch-label">
+                                        <input type="checkbox" id="setting-groupBlacklistEnabled" name="groupBlacklistEnabled" role="switch"> <span class="switch-status">启用/禁用</span>
+                                    </label>
+                                </h3>
+                                 <form class="access-control-form" data-type="GROUP_BLACKLIST">
+                                    <input type="text" placeholder="输入群号" required pattern="\d+">
+                                    <button type="submit">添加</button>
+                                </form>
+                                <ul id="group-blacklist" class="access-control-list"><li>加载中...</li></ul>
+                             </article>
+                        </div>
+                    </section>
+                </div>
+            </section>
+        </div>
+        <!-- End Moved Access Control Content -->
+
+        <!-- +++ 变量分类内容 +++ -->
+        <div id="tab-content-variables-category" class="tab-content">
+            <!-- 变量分类的子导航 -->
+            <nav id="variables-sub-nav" class="category-sub-nav">
+                <ul>
+                    <li><button class="secondary outline nav-button active" data-target="tab-content-local-variables">局部变量</button></li>
+                    <li><button class="secondary outline nav-button" data-target="tab-content-global-variables">全局变量</button></li>
+                </ul>
+            </nav>
+            
+            <!-- 变量分类下的子页面容器 -->
+            <div id="variables-sub-content" class="sub-content-container">
+                <!-- 局部变量内容 -->
+                <div id="tab-content-local-variables" class="sub-tab-content active">
+                    <section id="local-variables-section">
+                        <h2>局部变量定义与实例管理</h2>
+                        
+                        <article>
+                            <header>创建新的局部变量定义</header>
+                            <form id="local-variable-definition-form">
+                                <div class="grid">
+                                    <label for="local-var-def-name">定义名称
+                                        <input type="text" id="local-var-def-name" name="definitionName" placeholder="例如：用户心情指数 (全局唯一)">
+                                    </label>
+                                    <label for="local-var-def-value">默认值
+                                        <input type="text" id="local-var-def-value" name="defaultValue" placeholder="例如：良好">
+                                    </label>
+                                </div>
+                                <button type="button" id="create-local-var-definition-btn">创建定义</button>
+                            </form>
+                        </article>
+
+                        <hr>
+
+                        <article>
+                            <header>局部变量定义列表</header>
+                            <form id="local-variable-definition-filter-form" class="filter-form">
+                                <label for="local-var-def-filter-name">按定义名称搜索:
+                                    <input type="search" id="local-var-def-filter-name" name="defFilterName" placeholder="输入定义名称筛选...">
+                                </label>
+                                <!-- Search button removed -->
+                            </form>
+                            <table id="local-variable-definitions-table" role="grid">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">名称</th>
+                                        <th scope="col">默认值</th>
+                                        <th scope="col">更新时间</th>
+                                        <th scope="col">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr><td colspan="4" aria-busy="true">请搜索或等待定义加载...</td></tr>
+                                </tbody>
+                            </table>
+                        </article>
+                        
+                        <hr>
+                        
+                        <h3>查询局部变量实例</h3>
+                        <form id="local-variable-instance-filter-form">
+                         <div class="grid">
+                            <label for="local-var-instance-filter-def-name">定义名称 (用于筛选实例)
+                                <input type="text" id="local-var-instance-filter-def-name" name="filterInstanceDefinitionName" placeholder="输入定义名称筛选">
+                            </label>
+                            <label for="local-var-filter-context-type">
+                                    作用域类型
+                                    <select id="local-var-filter-context-type" name="filterContextType">
+                                        <option value="">-- 所有类型 --</option>
+                                        <option value="PRIVATE">私聊 (PRIVATE)</option>
+                                        <option value="GROUP">群聊 (GROUP)</option>
+                                    </select>
+                                </label>
+                             </div>
+                             <div class="grid">
+                                <label for="local-var-filter-context-id">上下文ID (QQ号/群号)
+                                    <input type="text" id="local-var-filter-context-id" name="filterContextId" placeholder="输入上下文ID筛选">
+                                </label>
+                                <label for="local-var-filter-user-id">用户ID (QQ号)
+                                    <input type="text" id="local-var-filter-user-id" name="filterUserId" placeholder="输入用户ID筛选">
+                                </label>
+                            </div>
+                            <button type="button" id="filter-local-var-instances-btn" class="secondary">查询实例</button>
+                        </form>
+                        
+                        <table id="local-variables-table" role="grid">
+                            <thead>
+                                <tr>
+                                    <th scope="col">定义名称</th>
+                                    <th scope="col">实例值</th>
+                                    <th scope="col">默认值</th>
+                                    <th scope="col">类型</th>
+                                    <th scope="col">上下文ID</th>
+                                    <th scope="col">用户ID</th>
+                                    <th scope="col">更新时间</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="8" aria-busy="true">请查询或等待实例加载...</td></tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+                
+                <!-- 全局变量内容 -->
+                <div id="tab-content-global-variables" class="sub-tab-content">
+                    <section id="global-variables-section">
+                        <h2>全局变量管理</h2>
+                        <form id="global-variable-form">
+                             <div class="grid">
+                                <label for="global-var-name">变量名称
+                                    <input type="text" id="global-var-name" name="name" required placeholder="例如：welcomeMessage">
+                                </label>
+                                <label for="global-var-value">变量值
+                                    <input type="text" id="global-var-value" name="value" required placeholder="例如：欢迎使用！">
+                                </label>
+                            </div>
+                            <button type="button" id="create-global-var-btn">创建全局变量</button>
+                        </form>
+                        <hr>
+                        <label for="search-global-var-name">搜索全局变量 (按名称):
+                            <input type="search" id="search-global-var-name" name="searchName" placeholder="输入名称进行搜索...">
+                        </label>
+                        <table id="global-variables-table" role="grid">
+                            <thead>
+                                <tr>
+                                    <th scope="col">名称</th>
+                                    <th scope="col">值</th>
+                                    <th scope="col">更新时间</th>
+                                    <th scope="col">操作</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="4" aria-busy="true">正在加载全局变量列表...</td></tr>
+                            </tbody>
+                        </table>
+                    </section>
+                </div>
+            </div>
+        </div>
+        <!-- +++ 结束变量分类内容 +++ -->
+        
+        <!-- 历史分类内容 -->
+        <div id="tab-content-history-category" class="tab-content">
+            <!-- 历史分类的子导航 -->
+            <nav id="history-sub-nav" class="category-sub-nav">
+                <ul>
+                    <li><button class="secondary outline nav-button active" data-target="tab-content-history">对话历史</button></li>
+                    <li><button class="secondary outline nav-button" data-target="tab-content-message-history">消息历史</button></li>
+                </ul>
+            </nav>
+            
+            <!-- 历史分类下的子页面容器 -->
+            <div id="history-sub-content" class="sub-content-container">
+                <!-- 这里会动态显示子页面内容 -->
+                <div id="tab-content-history" class="sub-tab-content active">
+                    <section id="history-section">
+                        <h2>对话历史查看</h2>
+                         <form id="history-filter-form"> <!-- Removed grid class -->
+                             <div class="grid"> <!-- Added grid wrapper -->
+                                 <label for="history-context-type">
+                                     类型
+                                     <select id="history-context-type" required>
+                                     <option value="private">私聊</option>
+                                     <option value="group">群聊</option>
+                                 </select>
+                             </label>
+                             <label for="history-context-id">
+                                 QQ号/群号
+                                 <select id="history-context-id" required>
+                                     <option value="" disabled selected>--选择类型后加载--</option>
+                                 </select>
+                             </label>
+                             <div class="history-form-group"> <!-- Container for label + input group -->
+                                 <label for="history-limit">查询条数</label> <!-- Changed text -->
+                                 <div class="input-group">
+                                     <input type="number" id="history-limit" value="10" min="1" max="500"> <!-- Changed default and max -->
+                                     <button type="submit">查询</button> <!-- Removed contrast -->
+                                 </div>
+                             </div>
+                             <div class="history-form-group"> <!-- Container for label + input group -->
+                                 <label for="history-delete-count">删除条数</label> <!-- Changed text -->
+                                 <div class="input-group">
+                                     <input type="number" id="history-delete-count" value="10" min="1"> <!-- Changed default -->
+                                     <button type="button" id="delete-history-btn" class="contrast">删除</button> <!-- Changed text -->
+                                 </div>
+                             </div>
+                             </div> <!-- End grid wrapper -->
+                         </form>
+                         <div id="history-output">
+                            <!-- Placeholder removed, content will be added by JS -->
+                        </div>
+                    </section>
+                </div>
+                
+                <div id="tab-content-message-history" class="sub-tab-content">
+                    <section id="message-history-section">
+                        <h2>消息历史查看</h2>
+                         <form id="message-history-filter-form"> <!-- Removed grid class -->
+                             <div class="grid"> <!-- Added grid wrapper -->
+                                 <label for="message-history-context-type">
+                                     类型
+                                     <select id="message-history-context-type" required>
+                                     <option value="PRIVATE">私聊</option>
+                                     <option value="GROUP">群聊</option>
+                                 </select>
+                             </label>
+                             <label for="message-history-context-id"> <!-- Renamed label 'for' -->
+                                 QQ号/群号
+                                 <select id="message-history-context-id" required> <!-- Renamed input ID and changed to select -->
+                                     <option value="" disabled selected>--选择类型后加载--</option>
+                                 </select>
+                             </label>
+                              <div class="history-form-group"> <!-- Container for label + input group -->
+                                 <label for="message-history-limit">查询条数</label> <!-- Label text only -->
+                                 <div class="input-group">
+                                     <input type="number" id="message-history-limit" value="10" min="1" max="500">
+                                     <button type="submit">查询</button> <!-- Removed contrast -->
+                                 </div>
+                             </div>
+                             <div class="history-form-group"> <!-- Container for label + input group -->
+                                 <label for="message-history-delete-count">删除条数</label> <!-- Label text only -->
+                                 <div class="input-group">
+                                     <input type="number" id="message-history-delete-count" value="10" min="1">
+                                     <button type="button" id="delete-message-history-btn" class="contrast">删除</button> <!-- Changed text -->
+                                 </div>
+                             </div>
+                             </div> <!-- End grid wrapper -->
+                         </form>
+                         <div id="message-history-output">
+                            <!-- Placeholder removed, content will be added by JS -->
+                        </div>
+                    </section> <!-- 修正：确保 section 在这里结束 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content Panels (其余保持不变) -->
+        <div id="tab-content-plugins" class="tab-content">
+            <section id="plugins-section">
+                <h2>插件管理</h2>
+                <p>此处将显示已安装和可配置的插件。</p>
+                <div id="plugins-list">
+                    <!-- 插件列表将由 JS 动态填充 -->
+                    <p aria-busy="true">正在加载插件列表...</p>
+                </div>
+            </section>
+        </div>
+        <!-- 结束：插件 Tab 内容 -->
+
+        <!-- 设置页面内容 -->
+        <div id="tab-content-settings" class="tab-content">
+            <!-- Settings Sub-Navigation -->
+            <nav id="settings-sub-nav" class="settings-sub-nav"> <!-- Added ID and class -->
+                <ul>
+                    <!-- 应用和模型按钮已移除，其内容整合到预设设置模态框 -->
+                    <li><button class="secondary outline nav-button active" data-target="settings-sub-tab-connection">连接</button></li>
+                    <li><button class="secondary outline nav-button" data-target="settings-sub-tab-log">日志</button></li>
+                    <!-- Removed Debug Sub-Tab Button -->
+                    <li style="margin-left: auto;"><button id="logout-button" class="contrast logout-button-settings">登出</button></li>
+                </ul>
+            </nav>
+            <section id="settings-section">
+                <form id="settings-form">
+                    <!-- Settings Sub-Tab Content Panels -->
+                    <!-- 应用和模型设置面板已移除，其内容整合到预设设置模态框 -->
+
+                    <div id="settings-sub-tab-connection" class="settings-sub-tab active"> <!-- Renamed ID & Set Active -->
+                        <label for="setting-onebot-mode">
+                            OneBot 连接模式
+                            <select id="setting-onebot-mode" name="onebotMode" required>
+                                <option value="ws-reverse">反向 WebSocket (推荐)</option>
+                                <option value="ws">正向 WebSocket</option>
+                            </select>
+                        </label>
+                        <label for="setting-onebot-url">
+                            OneBot 正向 WebSocket URL (仅在正向模式时需要)
+                            <input type="url" id="setting-onebot-url" name="onebotUrl" placeholder="ws://127.0.0.1:6700">
+                        </label>
+                        <label for="setting-onebot-port">
+                            OneBot 反向 WebSocket 监听端口 (仅在反向模式时需要)
+                            <input type="number" id="setting-onebot-port" name="onebotPort" min="1025" max="65535" step="1" placeholder="6701">
+                        </label>
+                        <label for="setting-onebot-access-token">
+                            OneBot Access Token (可选)
+                            <input type="password" id="setting-onebot-access-token" name="onebotAccessToken" placeholder="可选的访问令牌">
+                        </label>
+                        <label for="setting-onebot-reconnect-interval">
+                            OneBot 正向 WebSocket 重连间隔 (毫秒, 仅在正向模式时生效)
+                            <input type="number" id="setting-onebot-reconnect-interval" name="onebotReconnectInterval" min="1000" step="1000" placeholder="5000">
+                        </label>
+                        <button type="button" class="save-settings-btn" data-settings-section="connection">保存当前设置</button> <!-- Renamed data-settings-section -->
+                    </div>
+
+                    <div id="settings-sub-tab-log" class="settings-sub-tab">
+                        <label for="setting-log-level">
+                            日志级别
+                            <select id="setting-log-level" name="logLevel" required>
+                                <option value="NORMAL">常规 (仅基础信息)</option>
+                                <option value="DEBUG_AI">调试 (AI 相关)</option>
+                                <option value="DEBUG_ALL">调试 (全部)</option>
+                            </select>
+                            <small>常规模式只显示必要信息；调试(AI)增加 AI 调用细节；调试(全部)显示所有详细日志。</small>
+                        </label>
+                        <button type="button" class="save-settings-btn" data-settings-section="log">保存当前设置</button>
+                    </div>
+
+                    <!-- Removed Debug Content Area -->
+
+                </form> <!-- 结束 settings-form -->
+            </section> <!-- 结束 settings-section -->
+        </div> <!-- 结束 tab-content-settings -->
+
+        <!-- Preset List Edit Modal -->
+        <dialog id="preset-modal">
+            <article>
+                <header>
+                    <!-- 调整顺序：标题在前，按钮在后 -->
+                    <h3 id="preset-modal-title">编辑预设</h3>
+                    <button aria-label="Close" rel="prev" data-target="preset-modal"></button> <!-- 确保 rel="prev" 存在 -->
+                </header>
+                <form id="preset-form">
+                    <input type="hidden" id="preset-id">
+                    <div class="preset-editor-columns"> <!-- 新增：两栏容器 -->
+                        <div class="preset-editor-left-column"> <!-- 新增：左栏 -->
+                            <div class="grid">
+                                <label for="preset-name">
+                                    预设名称
+                                    <input type="text" id="preset-name" name="name" required>
+                                </label>
+                            </div>
+                            
+                            <div class="preset-editor-controls">
+                                <button type="button" class="outline secondary btn-sm" data-add-type="message">添加消息</button>
+                                <button type="button" class="outline secondary btn-sm" data-add-type="user_input">添加用户输入占位符</button>
+                                <button type="button" class="outline secondary btn-sm" data-add-type="chat_history">添加对话历史占位符</button>
+                                <button type="button" class="outline secondary btn-sm" data-add-type="message_history">添加消息历史占位符</button>
+                            </div>
+                        </div>
+                        <div class="preset-editor-right-column"> <!-- 新增：右栏 -->
+                            <label style="display: block; margin-bottom: 0.5rem;">预设条目列表 (可拖动排序)</label> <!-- 新增右栏标签 -->
+                            <div id="preset-editor-list" class="preset-editor-list">
+                                <p>请加载或添加预设项目。</p>
+                            </div>
+                            <small>拖动项目左侧的 <kbd>"☰"</kbd> 调整顺序。点击 "删除" 按钮删除项目。点击 "编辑" 按钮修改内容。使用开关启用/禁用项目。</small>
+                        </div>
+                    </div>
+
+                    <footer>
+                        <button type="submit" id="save-preset-btn">保存预设</button>
+                        <!-- 移除取消按钮 -->
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+
+        <!-- Preset Item Edit Modal -->
+        <dialog id="preset-item-edit-modal">
+             <article>
+                <header>
+                    <!-- 调整顺序：标题在前，按钮在后 -->
+                    <h3 id="preset-item-edit-modal-title">编辑预设项目</h3>
+                    <button aria-label="Close" rel="prev" data-target="preset-item-edit-modal"></button> <!-- 确保 rel="prev" 存在 -->
+                </header>
+                <form id="preset-item-edit-form">
+                    <!-- 预设项目编辑表单 -->
+                    <input type="hidden" id="edit-item-index">
+                    <div id="edit-item-fields">
+                        <!-- Content populated by JS -->
+                    </div>
+                    <footer>
+                        <button type="submit" id="preset-item-save" class="primary">保存</button>
+                    </footer>
+                </form>
+             </article>
+         </dialog>
+
+         <!-- New Preset Settings Modal -->
+         <dialog id="preset-settings-modal">
+             <article>
+                 <header>
+                     <!-- 调整顺序：标题在前，按钮在后 -->
+                     <h3 id="preset-settings-modal-title">预设设置</h3>
+                     <button aria-label="Close" rel="prev" data-target="preset-settings-modal"></button> <!-- 确保 rel="prev" 存在 -->
+                 </header>
+                 <form id="preset-settings-form">
+                     <input type="hidden" id="preset-settings-id">
+ 
+                     <!-- Tab Navigation for Preset Settings -->
+                     <nav class="settings-modal-sub-nav">
+                         <ul>
+                             <li><button type="button" class="secondary outline nav-button active" data-target="preset-settings-basic-content">基本设置</button></li>
+                             <li><button type="button" class="secondary outline nav-button" data-target="preset-settings-features-content">功能设置</button></li>
+                             <li><button type="button" class="secondary outline nav-button" data-target="preset-settings-model-content">模型设置</button></li>
+                             <li><button type="button" class="secondary outline nav-button" data-target="preset-settings-web-content">联网设置</button></li>
+                             <li><button type="button" class="secondary outline nav-button" data-target="preset-settings-trigger-content">触发设置</button></li>
+                         </ul>
+                     </nav>
+ 
+                     <!-- Settings Content Sections -->
+                     <div class="settings-modal-content-container" style="flex: 1; overflow-y: auto; padding: 0.5rem;">
+                         <!-- Basic Settings -->
+                         <div id="preset-settings-basic-content" class="settings-modal-tab-content active">
+                             <label for="preset-settings-bot-name">
+                                 名称
+                                 <input type="text" id="preset-settings-bot-name" name="botName" placeholder="例如：助手">
+                                 <small>用于触发和 `{{bot_name}}`。</small>
+                             </label>
+                             
+                             <label for="preset-settings-bot-nicknames">
+                                 昵称 (逗号分隔)
+                                 <input type="text" id="preset-settings-bot-nicknames" name="botNicknames" placeholder="例如：小助手,小艺,小爱">
+                                 <small>用于触发。</small>
+                             </label>
+ 
+                             <hr>
+                             <h4>应用设置</h4>
+                             <label for="preset-settings-chat-history-limit">
+                                 对话历史记录上限 (条数)
+                                 <input type="number" id="preset-settings-chat-history-limit" name="chatHistoryLimit" min="1" step="1" required>
+                                 <small>用于 AI 对话上下文，按消息条数计算。</small>
+                             </label>
+                             <label for="preset-settings-message-history-limit">
+                                 消息历史记录上限 (条数)
+                                 <input type="number" id="preset-settings-message-history-limit" name="messageHistoryLimit" min="1" step="1" required>
+                                 <small>用于存储原始消息记录，按单条消息计算。</small>
+                            </label>
+                        </div>
+
+                        <!-- Feature Settings -->
+                        <div id="preset-settings-features-content" class="settings-modal-tab-content" style="display: none;">
+                            <div style="display: flex; justify-content: center; margin-bottom: 0.25rem;"> <!-- Flex container to center the inner div -->
+                                <div style="display: flex; align-items: center; gap: 1rem;"> <!-- Inner container for switch and input -->
+                                    <label for="preset-settings-mode" style="margin-bottom: 0; display: flex; align-items: center;">
+                                        <input type="checkbox" id="preset-settings-mode" name="mode" role="switch" style="margin-right: 0.5rem;">
+                                        <span>高级模式</span>
+                                    </label>
+                                    <label for="preset-settings-advanced-delay" style="margin-bottom: 0; display: flex; align-items: center;">
+                                        <input type="number" id="preset-settings-advanced-delay" name="advancedModeMessageDelay" value="1000" min="100" max="5000" step="50" placeholder="延时(ms)" style="max-width: 120px; height: 32px; margin: 0; padding-top: 4px; padding-bottom: 4px; box-sizing: border-box;">
+                                    </label>
+                                </div>
+                            </div>
+                            <small style="display: block; text-align: center; margin-bottom: 1rem;">启用高级模式后，AI响应将按特殊格式解析。<br>右侧可设置多条消息发送间隔（毫秒）。</small>
+                            
+                            <hr>
+                            
+                            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+                                <!-- 高级模式延时输入框已上移 -->
+                                <div>
+                                    <label for="preset-settings-fuzzy-match">
+                                        <input type="checkbox" id="preset-settings-fuzzy-match" name="botFuzzyMatchEnabled" role="switch">
+                                        模糊匹配
+                                    </label>
+                                    <small>启用后，将尝试模糊匹配指令。</small>
+                                </div>
+                                <div>
+                                    <label for="preset-settings-allow-image">
+                                        <input type="checkbox" id="preset-settings-allow-image" name="allowImageInput" role="switch">
+                                        允许图片输入
+                                    </label>
+                                    <small>允许用户发送图片作为输入。</small>
+                                </div>
+                                <div>
+                                    <label for="preset-settings-allow-voice">
+                                        <input type="checkbox" id="preset-settings-allow-voice" name="allowVoiceOutput" role="switch">
+                                        允许语音输出
+                                    </label>
+                                    <small>控制此预设是否尝试使用语音插件进行回复。</small>
+                                </div>
+                                
+                                <!-- Trigger options moved to Trigger Settings Tab -->
+                            </div>
+                        </div>
+
+                        <!-- Model Settings -->
+                        <div id="preset-settings-model-content" class="settings-modal-tab-content" style="display: none;">
+                            <h4>模型设置</h4>
+                            <label for="preset-settings-openai-api-key">
+                                OpenAI API Key
+                                <input type="password" id="preset-settings-openai-api-key" name="openaiApiKey" placeholder="sk-...">
+                                <small>您的 OpenAI API 密钥。</small>
+                            </label>
+                            <label for="preset-settings-openai-base-url">
+                                OpenAI Base URL (可选, 用于代理)
+                                <input type="url" id="preset-settings-openai-base-url" name="openaiBaseUrl" placeholder="https://your.proxy.domain/v1">
+                                <small>如果您使用代理，请填写此项。</small>
+                            </label>
+                            <label for="preset-settings-openai-model">
+                                OpenAI 模型名称
+                                <input type="text" id="preset-settings-openai-model" name="openaiModel" required placeholder="gpt-3.5-turbo">
+                                <small>指定要使用的 OpenAI 模型。</small>
+                            </label>
+                        </div>
+
+                        <!-- Web Search Settings -->
+                        <div id="preset-settings-web-content" class="settings-modal-tab-content" style="display: none;">
+                            <h4>联网设置</h4>
+                            <div>
+                                <label for="preset-settings-allow-web-search">
+                                    <input type="checkbox" id="preset-settings-allow-web-search" name="allowWebSearch" role="switch">
+                                    允许联网搜索
+                                </label>
+                                <small>允许AI通过联网进行信息查询。<strong>注意：目前仅支持 NewAPI 接口!</strong></small>
+                            </div>
+                            <hr>
+                            <label for="preset-settings-web-search-api-key">
+                                联网API密钥
+                                <input type="password" id="preset-settings-web-search-api-key" name="webSearchApiKey" placeholder="sk-...">
+                                <small>用于联网搜索的API密钥，独立于模型设置</small>
+                            </label>
+                            <label for="preset-settings-web-search-base-url">
+                                联网基础URL (可选, 用于代理)
+                                <input type="url" id="preset-settings-web-search-base-url" name="webSearchBaseUrl" placeholder="https://your.proxy.domain/v1">
+                                <small>如果您使用代理，请填写此项</small>
+                            </label>
+                            <label for="preset-settings-web-search-model">
+                                联网搜索模型名称
+                                <input type="text" id="preset-settings-web-search-model" name="webSearchModel" required placeholder="gemini-2.0-flash">
+                                <small>指定要用于联网搜索的模型</small>
+                            </label>
+                            <label for="preset-settings-web-search-system-prompt">
+                                联网搜索系统提示词 (可选)
+                                <textarea id="preset-settings-web-search-system-prompt" name="webSearchSystemPrompt" rows="3" placeholder="例如：你是一个高效的信息检索助手，请根据用户的问题联网搜索并提供简洁的答案。"></textarea>
+                                <small>此提示词将作为 system 角色的消息添加到联网搜索请求的最前面。如果为空，则不添加。</small>
+                            </label>
+                        </div>
+                    <!-- REMOVED settings-modal-content-container closing div from here -->
+                    
+                    <!-- Trigger Settings -->
+                    <div id="preset-settings-trigger-content" class="settings-modal-tab-content" style="display: none;">
+                         <nav class="secondary-tab-nav settings-modal-sub-nav" style="margin-bottom: 1rem;">
+                             <ul>
+                                 <li><button type="button" class="secondary outline nav-button active" data-target="preset-trigger-normal-content">普通触发</button></li>
+                                 <li><button type="button" class="secondary outline nav-button" data-target="preset-trigger-ai-content">AI触发</button></li>
+                             </ul>
+                         </nav>
+
+                         <!-- Normal Trigger Settings -->
+                         <div id="preset-trigger-normal-content" class="settings-modal-tab-content active">
+                             <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                                 <div>
+                                     <label for="preset-settings-name-trigger">
+                                         <input type="checkbox" id="preset-settings-name-trigger" name="nameTriggered" role="switch">
+                                         名称触发
+                                     </label>
+                                     <small>允许通过预设名称触发对话。</small>
+                                 </div>
+                                 <div>
+                                     <label for="preset-settings-nickname-trigger">
+                                         <input type="checkbox" id="preset-settings-nickname-trigger" name="nicknameTriggered" role="switch">
+                                         昵称触发
+                                     </label>
+                                     <small>允许通过昵称触发对话。</small>
+                                 </div>
+                                 <div>
+                                     <label for="preset-settings-at-trigger">
+                                         <input type="checkbox" id="preset-settings-at-trigger" name="atTriggered" role="switch">
+                                         @ 触发
+                                     </label>
+                                     <small>允许通过 @ 机器人触发对话。</small>
+                                 </div>
+                                 <div>
+                                     <label for="preset-settings-reply-trigger">
+                                         <input type="checkbox" id="preset-settings-reply-trigger" name="replyTriggered" role="switch">
+                                         回复触发
+                                     </label>
+                                     <small>允许通过回复机器人消息触发对话。</small>
+                                 </div>
+                             </div>
+                             <hr style="margin-top: 1rem; margin-bottom: 1rem;">
+                         </div>
+
+                         <!-- AI Trigger Settings -->
+                         <div id="preset-trigger-ai-content" class="settings-modal-tab-content" style="display: none;">
+                             <hr>
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                 <label for="preset-settings-timed-trigger-enabled" style="margin-bottom: 0; display: flex; align-items: center; white-space: nowrap;">
+                                     <input type="checkbox" id="preset-settings-timed-trigger-enabled" name="timedTriggerEnabled" role="switch" style="margin-right: 0.5rem;">
+                                     <span>定时触发</span>
+                                 </label>
+                                 <input type="number" id="preset-settings-timed-trigger-interval" name="timedTriggerInterval" min="10" max="1000" placeholder="10-1000秒" style="max-width: 120px; height: 32px; margin: 0; padding-top: 4px; padding-bottom: 4px; box-sizing: border-box;">
+                             </div>
+                             <small style="display: block; margin-bottom: 1rem;">启用后，机器人将按设定间隔自动触发。</small>
+
+                             <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                 <label for="preset-settings-quantitative-trigger-enabled" style="margin-bottom: 0; display: flex; align-items: center; white-space: nowrap;">
+                                     <input type="checkbox" id="preset-settings-quantitative-trigger-enabled" name="quantitativeTriggerEnabled" role="switch" style="margin-right: 0.5rem;">
+                                     <span>定量触发</span>
+                                 </label>
+                                 <input type="number" id="preset-settings-quantitative-trigger-threshold" name="quantitativeTriggerThreshold" min="10" max="100" placeholder="10-100条" style="max-width: 120px; height: 32px; margin: 0; padding-top: 4px; padding-bottom: 4px; box-sizing: border-box;">
+                             </div>
+                             <small style="display: block; margin-bottom: 1rem;">启用后，当监控的消息达到设定数量时触发。</small>
+                             <label for="preset-settings-ai-trigger-api-key">
+                                 AI触发 API Key
+                                 <input type="password" id="preset-settings-ai-trigger-api-key" name="aiTriggerApiKey" placeholder="sk-...">
+                                 <small>用于AI触发判断的OpenAI API密钥。</small>
+                             </label>
+                             <label for="preset-settings-ai-trigger-base-url">
+                                 AI触发 Base URL (可选)
+                                 <input type="url" id="preset-settings-ai-trigger-base-url" name="aiTriggerBaseUrl" placeholder="https://your.proxy.domain/v1">
+                                 <small>如果AI触发判断使用代理，请填写此项。</small>
+                             </label>
+                             <label for="preset-settings-ai-trigger-model">
+                                 AI触发 模型名称
+                                 <input type="text" id="preset-settings-ai-trigger-model" name="aiTriggerModel" placeholder="gpt-3.5-turbo">
+                                 <small>指定用于AI触发判断的模型。</small>
+                             </label>
+                             <label for="preset-settings-ai-trigger-keyword">
+                                 AI触发关键词
+                                 <input type="text" id="preset-settings-ai-trigger-keyword" name="aiTriggerKeyword" placeholder="例如：#触发主AI#">
+                                 <small>当副AI的回复包含此关键词时，将触发主AI。</small>
+                            </label>
+                            <div class="form-group"> <!-- 新增 -->
+                                <label for="preset-aiTriggerKeywordFuzzyMatch" style="display: flex; align-items: center;">
+                                    <input type="checkbox" id="preset-aiTriggerKeywordFuzzyMatch" name="aiTriggerKeywordFuzzyMatch" role="switch" style="margin-right: 0.5rem;">
+                                    AI触发关键词模糊匹配
+                                </label>
+                                <small>启用后，副AI的回复只要包含关键词即可触发，否则需完全一致。</small>
+                            </div>
+                            <label for="preset-settings-ai-trigger-system-prompt">
+                                 AI触发 系统提示词 (可选)
+                                 <textarea id="preset-settings-ai-trigger-system-prompt" name="aiTriggerSystemPrompt" rows="3" placeholder="例如：你是一个对话分析助手..."></textarea>
+                                 <small>用于指导副AI如何判断是否需要触发主AI。</small>
+                             </label>
+                             <label for="preset-settings-ai-trigger-user-prompt">
+                                 AI触发 用户提示词 (可选)
+                                 <textarea id="preset-settings-ai-trigger-user-prompt" name="aiTriggerUserPrompt" rows="3" placeholder="例如：请分析以下对话，如果用户意图是X，则回复Y..."></textarea>
+                                 <small>作为用户消息发送给副AI，通常包含当前对话内容和判断指令。可使用 {{last_message}} 占位符代表用户最新一条消息。</small>
+                             </label>
+                         </div>
+                     </div>
+                     <!-- End Settings Content Sections -->
+ 
+                     <footer>
+                         <button type="submit" id="save-preset-settings-btn">保存设置</button>
+                         <!-- 移除取消按钮 -->
+                     </footer>
+                 </form>
+             </article>
+         </dialog>
+         <!-- End New Preset Settings Modal -->
+
+
+         <!-- Plugin Configuration Modal -->
+         <dialog id="plugin-config-modal">
+             <article>
+                <header>
+                    <!-- 调整顺序：标题在前，按钮在后 -->
+                    <h3 id="plugin-config-modal-title">配置插件</h3>
+                    <button aria-label="Close" rel="prev" data-target="plugin-config-modal"></button> <!-- 确保 rel="prev" 存在 -->
+                </header>
+                <form id="plugin-config-form">
+                    <input type="hidden" id="plugin-config-plugin-name" name="pluginName"> <!-- Store plugin name -->
+                    <div id="plugin-config-fields">
+                        <!-- Config fields will be populated by JS -->
+                        <p aria-busy="true">正在加载配置...</p>
+                    </div>
+                    <footer>
+                        <button type="submit">保存配置</button>
+                        <!-- 移除取消按钮 -->
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        <!-- End Plugin Configuration Modal -->
+
+        <!-- 添加消息专用弹窗 -->
+        <dialog id="preset-add-item-modal">
+             <article>
+                <header>
+                    <h3 id="preset-add-item-modal-title">添加消息</h3>
+                    <button aria-label="Close" rel="prev" data-target="preset-add-item-modal"></button>
+                </header>
+                <form id="preset-add-item-form">
+                    <div id="add-item-fields">
+                        <div class="grid" style="margin-bottom: 1rem;">
+                            <label for="add-item-role">
+                                角色 (Role)
+                                <select id="add-item-role" name="role" style="max-width: 300px;">
+                                    <option value="system">System (系统指令)</option>
+                                    <option value="user">User (用户消息)</option>
+                                    <option value="assistant">Assistant (助手回复)</option>
+                                </select>
+                                <small>系统指令用于设置AI的行为，用户消息是用户的输入，助手回复是预设的AI回复</small>
+                            </label>
+                        </div>
+                        <div>
+                            <label for="add-item-content">
+                                内容 (Content)
+                                <textarea id="add-item-content" name="content"></textarea>
+                            </label>
+                        </div>
+                    </div>
+                    <footer>
+                        <button type="submit" id="save-add-item-btn">添加消息</button>
+                    </footer>
+                </form>
+             </article>
+         </dialog>
+
+        <!-- Disguise List Edit Modal -->
+        <dialog id="disguise-preset-modal">
+            <article>
+                <header>
+                    <h3 id="disguise-preset-modal-title">编辑伪装</h3>
+                    <button aria-label="Close" rel="prev" data-target="disguise-preset-modal"></button>
+                </header>
+                <form id="disguise-preset-form">
+                    <input type="hidden" id="disguise-preset-id">
+                    <div class="preset-editor-columns">
+                        <div class="preset-editor-left-column">
+                            <div class="grid">
+                                <label for="disguise-preset-name">
+                                    伪装名称
+                                    <input type="text" id="disguise-preset-name" name="name" required>
+                                </label>
+                            </div>
+                            <div class="preset-editor-controls">
+                                <button type="button" class="outline secondary btn-sm" data-add-type="message">添加消息</button>
+                                <button type="button" class="outline secondary btn-sm" data-add-type="user_input">添加用户输入占位符</button>
+                                <button type="button" class="outline secondary btn-sm" data-add-type="chat_history">添加对话历史占位符</button>
+                                <button type="button" class="outline secondary btn-sm" data-add-type="message_history">添加消息历史占位符</button>
+                            </div>
+                        </div>
+                        <div class="preset-editor-right-column">
+                            <label style="display: block; margin-bottom: 0.5rem;">伪装条目列表 (可拖动排序)</label>
+                            <div id="disguise-preset-editor-list" class="preset-editor-list">
+                                <p>请加载或添加伪装项目。</p>
+                            </div>
+                            <small>拖动项目左侧的 <kbd>"☰"</kbd> 调整顺序。点击 "删除" 按钮删除项目。点击 "编辑" 按钮修改内容。使用开关启用/禁用项目。</small>
+                        </div>
+                    </div>
+                    <footer>
+                        <button type="submit" id="disguise-save-preset-btn">保存伪装</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+
+        <!-- Disguise Item Edit Modal -->
+        <dialog id="disguise-preset-item-edit-modal">
+             <article>
+                <header>
+                    <h3 id="disguise-preset-item-edit-modal-title">编辑伪装项目</h3>
+                    <button aria-label="Close" rel="prev" data-target="disguise-preset-item-edit-modal"></button>
+                </header>
+                <form id="disguise-preset-item-edit-form">
+                    <input type="hidden" id="disguise-edit-item-index">
+                    <div id="disguise-edit-item-fields">
+                        <!-- Content populated by JS -->
+                    </div>
+                    <footer>
+                        <button type="submit" id="disguise-preset-item-save" class="primary">保存</button>
+                    </footer>
+                </form>
+             </article>
+         </dialog>
+
+        <!-- Disguise Add Item Modal -->
+        <dialog id="disguise-preset-add-item-modal">
+             <article>
+                <header>
+                    <h3 id="disguise-preset-add-item-modal-title">添加伪装消息</h3>
+                    <button aria-label="Close" rel="prev" data-target="disguise-preset-add-item-modal"></button>
+                </header>
+                <form id="disguise-preset-add-item-form">
+                    <div id="disguise-add-item-fields">
+                        <div class="grid" style="margin-bottom: 1rem;">
+                            <label for="disguise-add-item-role">
+                                角色 (Role)
+                                <select id="disguise-add-item-role" name="role" style="max-width: 300px;">
+                                    <option value="system">System (系统指令)</option>
+                                    <option value="user">User (用户消息)</option>
+                                    <option value="assistant">Assistant (助手回复)</option>
+                                </select>
+                                <small>系统指令用于设置AI的行为，用户消息是用户的输入，助手回复是预设的AI回复</small>
+                            </label>
+                        </div>
+                        <div>
+                            <label for="disguise-add-item-content">
+                                内容 (Content)
+                                <textarea id="disguise-add-item-content" name="content"></textarea>
+                            </label>
+                        </div>
+                    </div>
+                    <footer>
+                        <button type="submit" id="disguise-save-add-item-btn">添加消息</button>
+                    </footer>
+                </form>
+             </article>
+         </dialog>
+
+        <!-- New Disguise Settings Modal -->
+        <dialog id="disguise-preset-settings-modal">
+            <article>
+                <header>
+                    <h3 id="disguise-preset-settings-modal-title">伪装设置</h3>
+                    <button aria-label="Close" rel="prev" data-target="disguise-preset-settings-modal"></button>
+                </header>
+                <form id="disguise-preset-settings-form">
+                    <input type="hidden" id="disguise-preset-settings-id">
+
+                    <!-- Tab Navigation for Disguise Settings -->
+                    <nav class="settings-modal-sub-nav">
+                        <ul>
+                            <li><button type="button" class="secondary outline nav-button active" data-target="disguise-settings-basic-content">基本设置</button></li>
+                            <li><button type="button" class="secondary outline nav-button" data-target="disguise-settings-features-content">功能设置</button></li>
+                            <li><button type="button" class="secondary outline nav-button" data-target="disguise-settings-model-content">模型设置</button></li>
+                            <li><button type="button" class="secondary outline nav-button" data-target="disguise-settings-web-content">联网设置</button></li>
+                            <li><button type="button" class="secondary outline nav-button" data-target="disguise-settings-trigger-content">触发设置</button></li>
+                        </ul>
+                    </nav>
+
+                    <!-- Settings Content Sections -->
+                    <div class="settings-modal-content-container" style="flex: 1; overflow-y: auto; padding: 0.5rem;">
+                        <!-- Basic Settings -->
+                        <div id="disguise-settings-basic-content" class="settings-modal-tab-content active">
+                            <label for="disguise-preset-settings-bot-name">
+                                名称
+                                <input type="text" id="disguise-preset-settings-bot-name" name="botName" placeholder="例如：助手">
+                                <small>用于触发和 `{{bot_name}}`。</small>
+                            </label>
+                            <label for="disguise-preset-settings-bot-nicknames">
+                                昵称 (逗号分隔)
+                                <input type="text" id="disguise-preset-settings-bot-nicknames" name="botNicknames" placeholder="例如：小助手,小艺,小爱">
+                                <small>用于触发。</small>
+                            </label>
+                            <hr>
+                            <h4>应用设置</h4>
+                            <label for="disguise-preset-settings-chat-history-limit">
+                                对话历史记录上限 (条数)
+                                <input type="number" id="disguise-preset-settings-chat-history-limit" name="chatHistoryLimit" min="1" step="1" required>
+                                <small>用于 AI 对话上下文，按消息条数计算。</small>
+                            </label>
+                            <label for="disguise-preset-settings-message-history-limit">
+                                消息历史记录上限 (条数)
+                                <input type="number" id="disguise-preset-settings-message-history-limit" name="messageHistoryLimit" min="1" step="1" required>
+                                <small>用于存储原始消息记录，按单条消息计算。</small>
+                            </label>
+                        </div>
+
+                        <!-- Feature Settings -->
+                        <div id="disguise-settings-features-content" class="settings-modal-tab-content" style="display: none;">
+                            <div style="display: flex; justify-content: center; margin-bottom: 0.25rem;"> <!-- Flex container to center the inner div -->
+                                <div style="display: flex; align-items: center; gap: 1rem;"> <!-- Inner container for switch and input -->
+                                    <label for="disguise-preset-settings-mode" style="margin-bottom: 0; display: flex; align-items: center;">
+                                        <input type="checkbox" id="disguise-preset-settings-mode" name="mode" role="switch" style="margin-right: 0.5rem;">
+                                        <span>高级模式</span>
+                                    </label>
+                                    <label for="disguise-preset-settings-advanced-delay" style="margin-bottom: 0; display: flex; align-items: center;">
+                                        <input type="number" id="disguise-preset-settings-advanced-delay" name="advancedModeMessageDelay" value="1000" min="100" max="5000" step="50" placeholder="延时(ms)" style="max-width: 120px; height: 32px; margin: 0; padding-top: 4px; padding-bottom: 4px; box-sizing: border-box;">
+                                    </label>
+                                </div>
+                            </div>
+                            <small style="display: block; text-align: center; margin-bottom: 1rem;">启用高级模式后，AI响应将按特殊格式解析。<br>右侧可设置多条消息发送间隔（毫秒）。</small>
+                            <hr>
+                            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 1.5rem; margin-top: 1rem;">
+                                <!-- 高级模式延时输入框已上移 -->
+                                <div>
+                                    <label for="disguise-preset-settings-fuzzy-match">
+                                        <input type="checkbox" id="disguise-preset-settings-fuzzy-match" name="botFuzzyMatchEnabled" role="switch">
+                                        模糊匹配
+                                    </label>
+                                    <small>启用后，将尝试模糊匹配指令。</small>
+                                </div>
+                                <div>
+                                    <label for="disguise-preset-settings-allow-image">
+                                        <input type="checkbox" id="disguise-preset-settings-allow-image" name="allowImageInput" role="switch">
+                                        允许图片输入
+                                    </label>
+                                    <small>允许用户发送图片作为输入。</small>
+                                </div>
+                                <div>
+                                    <label for="disguise-preset-settings-allow-voice">
+                                        <input type="checkbox" id="disguise-preset-settings-allow-voice" name="allowVoiceOutput" role="switch">
+                                        允许语音输出
+                                    </label>
+                                    <small>控制此伪装是否尝试使用语音插件进行回复。</small>
+                                </div>
+                                
+                                <!-- Trigger options moved to Trigger Settings Tab -->
+                            </div>
+                        </div>
+
+                        <!-- Model Settings -->
+                        <div id="disguise-settings-model-content" class="settings-modal-tab-content" style="display: none;">
+                            <hr>
+                            <h4>模型设置</h4>
+                            <label for="disguise-preset-settings-openai-api-key">
+                                OpenAI API Key
+                                <input type="password" id="disguise-preset-settings-openai-api-key" name="openaiApiKey" placeholder="sk-...">
+                                <small>您的 OpenAI API 密钥。</small>
+                            </label>
+                            <label for="disguise-preset-settings-openai-base-url">
+                                OpenAI Base URL (可选, 用于代理)
+                                <input type="url" id="disguise-preset-settings-openai-base-url" name="openaiBaseUrl" placeholder="https://your.proxy.domain/v1">
+                                <small>如果您使用代理，请填写此项。</small>
+                            </label>
+                            <label for="disguise-preset-settings-openai-model">
+                                OpenAI 模型名称
+                                <input type="text" id="disguise-preset-settings-openai-model" name="openaiModel" required placeholder="gpt-3.5-turbo">
+                                <small>指定要使用的 OpenAI 模型。</small>
+                            </label>
+                        </div>
+
+                        <!-- Web Search Settings -->
+                        <div id="disguise-settings-web-content" class="settings-modal-tab-content" style="display: none;">
+                            <h4>联网设置</h4>
+                            <div>
+                                <label for="disguise-preset-settings-allow-web-search">
+                                    <input type="checkbox" id="disguise-preset-settings-allow-web-search" name="allowWebSearch" role="switch">
+                                    允许联网搜索
+                                </label>
+                                <small>允许AI通过联网进行信息查询。<strong>注意：目前仅支持 NewAPI 接口!</strong></small>
+                            </div>
+                            <hr>
+                            <label for="disguise-preset-settings-web-search-api-key">
+                                联网API密钥
+                                <input type="password" id="disguise-preset-settings-web-search-api-key" name="webSearchApiKey" placeholder="sk-...">
+                                <small>用于联网搜索的API密钥，独立于模型设置</small>
+                            </label>
+                            <label for="disguise-preset-settings-web-search-base-url">
+                                联网基础URL (可选, 用于代理)
+                                <input type="url" id="disguise-preset-settings-web-search-base-url" name="webSearchBaseUrl" placeholder="https://your.proxy.domain/v1">
+                                <small>如果您使用代理，请填写此项</small>
+                            </label>
+                            <label for="disguise-preset-settings-web-search-model">
+                                联网搜索模型名称
+                                <input type="text" id="disguise-preset-settings-web-search-model" name="webSearchModel" required placeholder="gemini-2.0-flash">
+                                <small>指定要用于联网搜索的模型</small>
+                            </label>
+                            <label for="disguise-settings-web-search-system-prompt">
+                                联网搜索系统提示词 (可选)
+                                <textarea id="disguise-settings-web-search-system-prompt" name="webSearchSystemPrompt" rows="3" placeholder="例如：你是一个高效的信息检索助手，请根据用户的问题联网搜索并提供简洁的答案。"></textarea>
+                                <small>此提示词将作为 system 角色的消息添加到联网搜索请求的最前面。如果为空，则不添加。</small>
+                            </label>
+                        </div>
+                    <!-- The erroneous closing div for settings-modal-content-container (originally line 1238) is removed. -->
+                    <!-- "disguise-settings-web-content" was already closed on line 1237. -->
+                    <!-- Trigger Settings -->
+                    <div id="disguise-settings-trigger-content" class="settings-modal-tab-content" style="display: none;">
+                        <nav class="secondary-tab-nav settings-modal-sub-nav" style="margin-bottom: 1rem;">
+                            <ul>
+                                <li><button type="button" class="secondary outline nav-button active" data-target="disguise-trigger-normal-content">普通触发</button></li>
+                                <li><button type="button" class="secondary outline nav-button" data-target="disguise-trigger-ai-content">AI触发</button></li>
+                            </ul>
+                        </nav>
+
+                        <!-- Normal Trigger Settings -->
+                        <div id="disguise-trigger-normal-content" class="settings-modal-tab-content active">
+                            <div class="grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem;">
+                                <div>
+                                    <label for="disguise-settings-name-trigger">
+                                        <input type="checkbox" id="disguise-settings-name-trigger" name="nameTriggered" role="switch">
+                                        名称触发
+                                    </label>
+                                    <small>允许通过伪装名称触发对话。</small>
+                                </div>
+                                <div>
+                                    <label for="disguise-settings-nickname-trigger">
+                                        <input type="checkbox" id="disguise-settings-nickname-trigger" name="nicknameTriggered" role="switch">
+                                        昵称触发
+                                    </label>
+                                    <small>允许通过昵称触发对话。</small>
+                                </div>
+                                <div>
+                                    <label for="disguise-settings-at-trigger">
+                                        <input type="checkbox" id="disguise-settings-at-trigger" name="atTriggered" role="switch">
+                                        @ 触发
+                                    </label>
+                                    <small>允许通过 @ 机器人触发对话。</small>
+                                </div>
+                                <div>
+                                    <label for="disguise-settings-reply-trigger">
+                                        <input type="checkbox" id="disguise-settings-reply-trigger" name="replyTriggered" role="switch">
+                                        回复触发
+                                    </label>
+                                    <small>允许通过回复机器人消息触发对话。</small>
+                                </div>
+                            </div>
+                            <hr style="margin-top: 1rem; margin-bottom: 1rem;">
+                        </div>
+
+                        <!-- AI Trigger Settings -->
+                        <div id="disguise-trigger-ai-content" class="settings-modal-tab-content" style="display: none;">
+                            <hr>
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                <label for="disguise-settings-timed-trigger-enabled" style="margin-bottom: 0; display: flex; align-items: center; white-space: nowrap;">
+                                    <input type="checkbox" id="disguise-settings-timed-trigger-enabled" name="timedTriggerEnabled" role="switch" style="margin-right: 0.5rem;">
+                                    <span>定时触发</span>
+                                </label>
+                                <input type="number" id="disguise-settings-timed-trigger-interval" name="timedTriggerInterval" min="10" max="1000" placeholder="10-1000秒" style="max-width: 120px; height: 32px; margin: 0; padding-top: 4px; padding-bottom: 4px; box-sizing: border-box;">
+                            </div>
+                            <small style="display: block; margin-bottom: 1rem;">启用后，机器人将按设定间隔自动触发。</small>
+
+                            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 0.5rem;">
+                                <label for="disguise-settings-quantitative-trigger-enabled" style="margin-bottom: 0; display: flex; align-items: center; white-space: nowrap;">
+                                    <input type="checkbox" id="disguise-settings-quantitative-trigger-enabled" name="quantitativeTriggerEnabled" role="switch" style="margin-right: 0.5rem;">
+                                    <span>定量触发</span>
+                                </label>
+                                <input type="number" id="disguise-settings-quantitative-trigger-threshold" name="quantitativeTriggerThreshold" min="10" max="100" placeholder="10-100条" style="max-width: 120px; height: 32px; margin: 0; padding-top: 4px; padding-bottom: 4px; box-sizing: border-box;">
+                            </div>
+                            <small style="display: block; margin-bottom: 1rem;">启用后，当监控的消息达到设定数量时触发。</small>
+                            <label for="disguise-settings-ai-trigger-api-key">
+                                AI触发 API Key
+                                <input type="password" id="disguise-settings-ai-trigger-api-key" name="aiTriggerApiKey" placeholder="sk-...">
+                                <small>用于AI触发判断的OpenAI API密钥。</small>
+                            </label>
+                            <label for="disguise-settings-ai-trigger-base-url">
+                                AI触发 Base URL (可选)
+                                <input type="url" id="disguise-settings-ai-trigger-base-url" name="aiTriggerBaseUrl" placeholder="https://your.proxy.domain/v1">
+                                <small>如果AI触发判断使用代理，请填写此项。</small>
+                            </label>
+                            <label for="disguise-settings-ai-trigger-model">
+                                AI触发 模型名称
+                                <input type="text" id="disguise-settings-ai-trigger-model" name="aiTriggerModel" placeholder="gpt-3.5-turbo">
+                                <small>指定用于AI触发判断的模型。</small>
+                            </label>
+                            <label for="disguise-settings-ai-trigger-keyword">
+                                AI触发关键词
+                                <input type="text" id="disguise-settings-ai-trigger-keyword" name="aiTriggerKeyword" placeholder="例如：#触发主AI#">
+                                <small>当副AI的回复包含此关键词时，将触发主AI。</small>
+                            </label>
+                            <div class="form-group"> <!-- 新增 -->
+                               <label for="disguise-aiTriggerKeywordFuzzyMatch" style="display: flex; align-items: center;">
+                                   <input type="checkbox" id="disguise-aiTriggerKeywordFuzzyMatch" name="aiTriggerKeywordFuzzyMatch" role="switch" style="margin-right: 0.5rem;">
+                                   AI触发关键词模糊匹配
+                               </label>
+                               <small>启用后，副AI的回复只要包含关键词即可触发，否则需完全一致。</small>
+                           </div>
+                            <label for="disguise-settings-ai-trigger-system-prompt">
+                                AI触发 系统提示词 (可选)
+                                <textarea id="disguise-settings-ai-trigger-system-prompt" name="aiTriggerSystemPrompt" rows="3" placeholder="例如：你是一个对话分析助手..."></textarea>
+                                <small>用于指导副AI如何判断是否需要触发主AI。</small>
+                            </label>
+                            <label for="disguise-settings-ai-trigger-user-prompt">
+                                AI触发 用户提示词 (可选)
+                                <textarea id="disguise-settings-ai-trigger-user-prompt" name="aiTriggerUserPrompt" rows="3" placeholder="例如：请分析以下对话，如果用户意图是X，则回复Y..."></textarea>
+                                <small>作为用户消息发送给副AI，通常包含当前对话内容和判断指令。可使用 {{last_message}} 占位符代表用户最新一条消息。</small>
+                            </label>
+                        </div>
+                    </div>
+                    </div> <!-- This closes div.settings-modal-content-container -->
+                    <footer>
+                        <button type="submit" id="disguise-save-preset-settings-btn">保存设置</button>
+                    </footer>
+                </form>
+            </article>
+        </dialog>
+        <!-- End New Disguise Settings Modal -->
+
+    </main>
+
+    <!-- SweetAlert2 JS (Local) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.all.min.js"></script>
+    <!-- Your custom JavaScript -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

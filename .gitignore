@@ -1,0 +1,35 @@
+# Dependencies
+/node_modules
+
+# Build output
+/dist
+
+# Environment variables
+.env
+
+# Prisma SQLite database
+*.db
+*.db-journal*
+
+# TS
+.tsbuildinfo
+
+# Logs
+*.log
+logs
+*.log.*.[0-9].gz
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE config
+.idea
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-project
+*.sublime-workspace
+.roo
