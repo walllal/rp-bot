@@ -103,3 +103,46 @@ export async function showPrompt(title, inputLabel, inputPlaceholder = '', initi
         return null; // User cancelled
     }
 }
+/**
+ * 显示一个带“是”、“否”、“取消”三个选项的确认对话框
+ * @param {string} title 标题
+ * @param {string} text 内容文本
+ * @param {string} [confirmButtonText='是'] “是”按钮文字
+ * @param {string} [denyButtonText='否'] “否”按钮文字
+ * @param {string} [cancelButtonText='取消'] “取消”按钮文字
+ * @param {'warning'|'error'|'success'|'info'|'question'} [icon='question'] 图标类型
+ * @returns {Promise<'yes'|'no'|'cancel'>} 用户选择的结果 ('yes', 'no', 'cancel')
+ */
+export async function showYesNoCancelConfirm(title, text, confirmButtonText = '是', denyButtonText = '否', cancelButtonText = '取消', icon = 'question') {
+    if (typeof Swal === 'undefined') {
+        console.warn('SweetAlert2 not loaded, cannot show Yes/No/Cancel confirm.');
+        // 提供一个简化的回退，但这不完全模拟三选项
+        const confirmed = confirm(`${title}\n${text}\n(OK = 是, Cancel = 取消/否)`);
+        return confirmed ? 'yes' : 'cancel'; // 简化回退逻辑
+    }
+    const result = await Swal.fire({
+        title: title,
+        text: text,
+        icon: icon,
+        showConfirmButton: true,
+        confirmButtonText: confirmButtonText,
+        confirmButtonColor: 'var(--pico-primary)',
+        showDenyButton: true, // 显示“否”按钮
+        denyButtonText: denyButtonText,
+        denyButtonColor: 'var(--pico-secondary)', // 可以为“否”按钮设置不同颜色
+        showCancelButton: true, // 显示“取消”按钮
+        cancelButtonText: cancelButtonText,
+        cancelButtonColor: 'var(--pico-muted-border-color)', // 使用柔和的颜色
+        reverseButtons: true, // 按钮顺序: 是, 否, 取消 (从右到左)
+        scrollbarPadding: false,
+        allowOutsideClick: false
+    });
+
+    if (result.isConfirmed) {
+        return 'yes';
+    } else if (result.isDenied) {
+        return 'no';
+    } else {
+        return 'cancel';
+    }
+}

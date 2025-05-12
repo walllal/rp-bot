@@ -12,7 +12,7 @@
 *.db-journal*
 
 # TS
-.tsbuildinfo
+*.tsbuildinfo
 
 # Logs
 *.log

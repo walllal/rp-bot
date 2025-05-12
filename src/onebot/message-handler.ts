@@ -526,14 +526,21 @@ async function handleConfigurationProcessing(
         };
         log('trace', `Context for preset processing (${configSource}: ${config.name}):`, contextForPreset);
         
+        // --- Process User Input for {{...}} commands before sending to AI ---
+        log('trace', `处理用户输入中的 set 指令 (仅处理 {{...}}): "${originalUserMessageText.substring(0, 200)}..."`);
+        // Use contextForPreset as it contains all necessary fields for variable processing
+        const processedUserInputText = await processAndStripSetCommands(originalUserMessageText, contextForPreset, 'user');
+        log('trace', `处理用户输入 set 指令后 (发送给AI的内容): "${processedUserInputText.substring(0, 200)}..."`);
+        // --- End User Input Processing ---
+
         // --- Call New Main AI Processor ---
-        // `originalUserMessageText` (which is `displayMessage`) is the plain text representation.
+        // `processedUserInputText` now has {{...}} stripped, but [[...]] preserved.
         // `repliedMessageIdParam` is the ID of the message being replied to, if any.
         let aiResponseContent = await processAndExecuteMainAi(
             config,
             contextType,
             contextId,
-            originalUserMessageText, // Use originalUserMessageText (which was displayMessage)
+            processedUserInputText, // Use the processed user input text
             serverInstance!, // serverInstance is checked to be non-null before this function call
             repliedMessageIdParam // Pass the new repliedMessageIdParam
         );
@@ -547,7 +554,7 @@ async function handleConfigurationProcessing(
             // +++ Process and strip set commands from AI response +++
             // The contextForPreset is suitable here as it contains all necessary fields for set command processing.
             log('trace', `原始 AI 响应内容 (处理 set 指令前): "${aiResponseContent.substring(0, 200)}..."`);
-            aiResponseContent = await processAndStripSetCommands(aiResponseContent, contextForPreset);
+            aiResponseContent = await processAndStripSetCommands(aiResponseContent, contextForPreset, 'ai'); // Added 'ai' source
             log('trace', `处理 set 指令后 AI 响应内容: "${aiResponseContent.substring(0, 200)}..."`);
             // +++ End of set command processing +++
 

@@ -1,5 +1,7 @@
 import apiService from '../services/apiService.js';
 import * as uiNotifications from '../utils/uiNotifications.js';
+// Import the specific confirmation function we need
+import { showYesNoCancelConfirm } from '../utils/uiNotifications.js';
 import * as domUtils from '../utils/domUtils.js';
 // Import functions for DISGUISE modals/editors
 import { openDisguisePresetEditorForNew, openDisguisePresetEditorForEdit } from './presetEditor.js'; // Assuming these will be renamed in presetEditor.js copy
@@ -111,9 +113,30 @@ async function handleDisguisePresetsTableClick(event) {
 }
 
 async function exportSingleDisguisePreset(presetId, button) {
-    button.textContent = '导出中...';
+    button.textContent = '准备导出...'; // Initial state before confirmation
     button.disabled = true;
+
     try {
+        // Ask the user first
+        const exportChoice = await showYesNoCancelConfirm(
+            '导出确认',
+            '是否包含 API 密钥、URL 和模型名称等敏感信息？\n选择“否”将移除这些信息。',
+            '是 (包含)', // Confirm button text for 'yes'
+            '否 (移除)', // Deny button text for 'no'
+            '取消'       // Cancel button text
+        );
+
+        if (exportChoice === 'cancel') {
+            uiNotifications.showToast('导出已取消', 2000, 'info');
+            // No 'finally' block needed here, reset button state directly
+            button.textContent = '导出';
+            button.disabled = false;
+            return; // Exit the function
+        }
+
+        // Proceed with export
+        button.textContent = '导出中...'; // Update button text
+
         const preset = await apiService.getDisguisePreset(presetId);
         const contentWithCustomNames = (preset.content || []).map(item => {
             const cleanItem = { ...item };
@@ -150,11 +173,43 @@ async function exportSingleDisguisePreset(presetId, button) {
             webSearchApiKey: preset.webSearchApiKey || null,
             webSearchBaseUrl: preset.webSearchBaseUrl || null,
             webSearchModel: preset.webSearchModel || 'gemini-2.0-flash',
+            webSearchSystemPrompt: preset.webSearchSystemPrompt || null, // Added missing web search prompt
+            // Advanced Trigger Settings
+            timedTriggerEnabled: preset.timedTriggerEnabled ?? false,
+            timedTriggerInterval: preset.timedTriggerInterval ?? null,
+            quantitativeTriggerEnabled: preset.quantitativeTriggerEnabled ?? false,
+            quantitativeTriggerThreshold: preset.quantitativeTriggerThreshold ?? null,
+            aiTriggerEnabled: preset.aiTriggerEnabled ?? false,
+            aiTriggerApiKey: preset.aiTriggerApiKey || null,
+            aiTriggerBaseUrl: preset.aiTriggerBaseUrl || null,
+            aiTriggerModel: preset.aiTriggerModel || null,
+            aiTriggerKeyword: preset.aiTriggerKeyword || null,
+            aiTriggerKeywordFuzzyMatch: preset.aiTriggerKeywordFuzzyMatch ?? false,
+            aiTriggerSystemPrompt: preset.aiTriggerSystemPrompt || null,
+            aiTriggerUserPrompt: preset.aiTriggerUserPrompt || null,
             // content must be last for better readability in exported JSON
         };
-        const orderedPreset = {...presetData, content: contentWithCustomNames}; // Add content last
+        let presetToExport = {...presetData, content: contentWithCustomNames}; // Add content last
 
-        const dataToExport = [orderedPreset];
+        // If user chose 'no', remove sensitive data
+        if (exportChoice === 'no') {
+            const sensitiveKeys = [
+                'openaiApiKey', 'openaiBaseUrl', 'openaiModel',
+                'webSearchApiKey', 'webSearchBaseUrl', 'webSearchModel',
+                'aiTriggerApiKey', 'aiTriggerBaseUrl', 'aiTriggerModel'
+            ];
+            // Create a copy to modify
+            const sanitizedPreset = { ...presetToExport };
+            sensitiveKeys.forEach(key => {
+                if (key in sanitizedPreset) {
+                    delete sanitizedPreset[key];
+                }
+            });
+            presetToExport = sanitizedPreset; // Use the sanitized version
+            uiNotifications.showToast('敏感信息已移除', 1500, 'info'); // Inform user
+        }
+
+        const dataToExport = [presetToExport]; // Export the (potentially sanitized) preset
         const jsonString = JSON.stringify(dataToExport, null, 2);
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = URL.createObjectURL(blob);
