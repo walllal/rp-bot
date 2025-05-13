@@ -134,12 +134,20 @@ async function executeSubAiForSpecificContext(
             // For now, let's use a generic trigger message, as `mainAiTimedTriggerPrompt` is not in the schema.
             const mainAiTriggerMessage = `定时任务触发：预设“${config.name}”在上下文 ${contextType}:${contextId} 中需要主AI处理。`;
 
+            // Get bot ID for senderUserId in timed trigger context
+            const botIdForSender = getBotConfig()?.selfId?.toString() || 'system'; // Use bot ID or 'system'
+
             const mainAiReply = await processAndExecuteMainAi(
-                config,
-                contextType,
-                contextId,
-                mainAiTriggerMessage,
-                serverInstance
+                config,                 // config
+                contextType,            // contextType
+                contextId,              // contextId (group or private user ID)
+                botIdForSender,         // senderUserId (use bot ID or 'system')
+                undefined,              // senderNickname (none for timed trigger)
+                undefined,              // senderCard (none for timed trigger)
+                mainAiTriggerMessage,   // userInputText
+                serverInstance,         // serverInstance
+                undefined,              // replyToMessageId (none for timed trigger)
+                undefined               // replyToContent (none for timed trigger)
             );
 
             if (mainAiReply) {

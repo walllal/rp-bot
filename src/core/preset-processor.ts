@@ -20,6 +20,8 @@ import {
   getLocalVariableInstance,         // New import
   upsertLocalVariableInstance     // New import
 } from '../db/variables'; // +++ Import custom variable functions
+// 导入处理@的函数
+import { processAtMentionsInOpenAIMessages } from './message-utils';
  // Removed import of getSetting and SettingKey
 
  // Prisma Client is now initialized and imported from '../db/prismaClient'
@@ -366,8 +368,9 @@ export async function substituteVariables(template: string, context: VariableCon
          // 对于未定义的变量，将其替换为空字符串
          // console.warn(`在 substituteVariables 中遇到未定义变量: ${match}, 将替换为空字符串.`);
          if (key === 'user_input') {
-          // console.warn(`[substituteVariables] 检测到 'user_input' 在 default case 中，将返回原始匹配: ${match}`);
-          return match; // 返回原始 {{user_input}} 以便 processPreset 处理
+          // 修改: 不再返回原始匹配，而是直接替换为用户输入
+          console.log(`[substituteVariables] 检测到 'user_input'，将替换为用户输入: "${context.message || ''}"`);
+          return context.message || ''; // 返回用户输入文本，如果不存在则返回空字符串
          }
          // 移除对 {{last_message}} 的特殊警告，因为它现在不应该被匹配到这里
          // if (key === 'last_message') {
@@ -430,16 +433,33 @@ export async function substituteVariables(template: string, context: VariableCon
 
        if (placeholder.variable_name === 'user_input') {
          // --- 处理独立的 {{user_input}} 占位符项目 ---
-         // 插入当前用户的结构化输入内容
-         // 确保 userMessageContent 不为空
-         if (userMessageContent && userMessageContent.length > 0) {
-             // 直接将 userMessageContent 数组作为 content 推入
-             outputMessages.push({ role: 'user', content: userMessageContent });
+         // 插入当前用户的文本输入内容，而不是结构化内容
+         // 确保 variableContext.message 不为空，优先使用它
+         if (variableContext.message && variableContext.message.trim()) {
+             // 直接使用 variableContext.message 作为 content 推入
+             outputMessages.push({ role: 'user', content: variableContext.message });
+             console.log(`[processPreset] 使用 variableContext.message 为独立的 {{user_input}} 占位符: "${variableContext.message}"`);
+         } else if (userMessageContent && userMessageContent.length > 0) {
+             // 如果没有 message 字段，则尝试使用结构化内容
+             // 将文本类型的项目合并
+             const textParts = userMessageContent
+                 .filter(item => item.type === 'text')
+                 .map(item => (item as {type: 'text', text: string}).text);
+             const combinedText = textParts.join(' ').trim();
+             
+             if (combinedText) {
+                 outputMessages.push({ role: 'user', content: combinedText });
+                 console.log(`[processPreset] 使用合并的文本内容为独立的 {{user_input}} 占位符: "${combinedText}"`);
+             } else {
+                 // 如果没有文本内容，添加一个空的用户消息
+                 outputMessages.push({ role: 'user', content: '' });
+                 console.warn(`独立的 {{user_input}} 占位符没有可用的文本内容，添加空消息。`);
+             }
          } else {
-             console.warn("独立的 {{user_input}} 占位符遇到空的用户输入内容。");
+             console.warn(`独立的 {{user_input}} 占位符遇到空的用户输入内容和空的 variableContext.message。`);
              // 确保即使用户输入为空，也添加一个空的user消息
              // 这对回复触发特别重要，因为即使用户没有输入任何文本，也需要处理这个消息
-             outputMessages.push({ role: 'user', content: [{ type: 'text', text: '' }] });
+             outputMessages.push({ role: 'user', content: '' });
          }
          // --- 结束处理独立的 {{user_input}} 占位符 ---
        } else if (placeholder.variable_name === 'chat_history') {
@@ -554,89 +574,38 @@ export async function substituteVariables(template: string, context: VariableCon
       // 异步处理内容中的其他变量替换 (如 {{date}}, {{time}} 等)
       // Pass presetLimits to substituteVariables
       const processedContentString = await substituteVariables(message.content, variableContext, presetLimits);
+      
+      // +++ DEBUG: Log the exact string that will be checked for {{user_input}} +++
+      console.log(`[processPreset] Role: ${message.role}, AFTER substituteVariables, processedContentString: "${processedContentString}"`);
 
-        const isEnabled = message.enabled === true || message.enabled === undefined; // 更明确地检查 true 或 undefined
+      const isEnabled = message.enabled === true || message.enabled === undefined; // 更明确地检查 true 或 undefined
 
-      // --- 处理内联的 {{user_input}} 变量 (适用于所有角色) ---
-      if (processedContentString.includes('{{user_input}}')) {
-        // 注意：如果用户的输入包含图片，并且此消息的角色不是 'user'，
-        // 发送给 OpenAI 时可能不符合其 API 规范，可能导致错误或意外行为。
-
-        const finalContentArray: UserMessageContentItem[] = [];
-        // --- 新逻辑：合并所有文本到第一项，图片放后面 ---
-        const textParts: string[] = []; // 存储所有文本片段
-        const imageUrls: Extract<UserMessageContentItem, { type: 'image_url' }>[] = []; // 存储图片 URL 对象
-
-        // 按 {{user_input}} 分割模板字符串
-        const templateParts = processedContentString.split('{{user_input}}');
-
-        // 添加第一个模板部分 (如果非空)
-        if (templateParts[0] && templateParts[0].trim()) {
-          textParts.push(templateParts[0].trim());
-        }
-
-        // 遍历用户输入，分离文本和图片，生成文本占位符
-        let imageCounter = 1; // 初始化图片计数器
-        if (userMessageContent && userMessageContent.length > 0) {
-          for (const contentItem of userMessageContent) {
-            if (contentItem.type === 'text') {
-              textParts.push(contentItem.text); // 添加用户文本
-            } else if (contentItem.type === 'image_url') {
-              // 不再添加文本占位符，因为在parseOneBotMessage中已经添加过了
-              // 只收集图片URL对象
-              imageUrls.push(contentItem);
-              imageCounter++;
-            }
-            // 可以根据需要处理其他类型的 contentItem
-          }
-        } else {
-          console.warn(`处理内联 {{user_input}} 时，用户输入内容 (userMessageContent) 为空或未定义。`);
-        }
-
-        // 添加剩余的模板部分 (如果存在且非空)
-        // 这里假设模板中最多只有一个 {{user_input}}
-        if (templateParts[1] && templateParts[1].trim()) {
-          textParts.push(templateParts[1].trim());
-        }
-
-        // 构建最终的内容数组 (移除重复声明)
-        // const finalContentArray: UserMessageContentItem[] = []; // <--- 移除这行重复声明
-
-        // 1. 添加合并后的文本项 (如果文本部分不为空)
-        const combinedText = textParts.join(' ').trim(); // 用空格连接所有文本部分
-        if (combinedText) {
-            finalContentArray.push({ type: 'text', text: combinedText });
-        }
-
-        // 2. 添加所有收集到的图片项
-        finalContentArray.push(...imageUrls);
-
-        // 添加最终构造的消息到 outputMessages
-        // 使用原始消息的角色 (message.role)
-        if (finalContentArray.length > 0) { // 确保最终内容不为空
-            
-            outputMessages.push({ role: message.role, content: finalContentArray });
-        } else {
-            // 确保即使最终内容为空，在消息中也包含该项
-            // 这对回复触发特别重要，因为即使用户没有输入任何文本，也需要处理这个消息
-            outputMessages.push({ role: message.role, content: [{ type: 'text', text: '' }] });
-            console.warn(`处理内联 {{user_input}} (角色: ${message.role}) 后内容为空，已添加空文本项。`);
-        }
-
+      // 直接将处理过的内容字符串作为 content 推入
+      // 我们已修改 substituteVariables 函数直接替换 {{user_input}}，不再需要特殊处理
+      if (processedContentString.trim()) { // 确保内容不为空
+          const messageToAdd = { role: message.role, content: processedContentString.trim() };
+          console.log(`[processPreset] Pushing message for role ${message.role}:`, JSON.stringify(messageToAdd)); // +++ DEBUG
+          outputMessages.push(messageToAdd);
       } else {
-        // --- 处理不包含内联 {{user_input}} 的普通消息 ---
-        // 直接将处理过其他变量的字符串作为 content 推入
-        if (processedContentString.trim()) { // 确保内容不为空
-            outputMessages.push({ role: message.role, content: processedContentString.trim() });
-        }
+           console.log(`[processPreset] Skipping empty content for role ${message.role}.`); // +++ DEBUG
       }
-      // --- 结束内联 {{user_input}} 处理 ---
+      // --- 结束消息处理 ---
     }
   }
 
   // 确保最后一条消息是 user role (如果预设没有显式包含 user_input) - 保持注释，让预设控制
   // ...
 
-  return outputMessages;
+  // 处理消息中的@提及，根据模式不同采取不同处理方式
+  let finalMessages = outputMessages;
+  if (applicableConfig.mode && outputMessages.length > 0) {
+    finalMessages = processAtMentionsInOpenAIMessages(
+      outputMessages,
+      applicableConfig.mode,
+      variableContext.botId
+    );
+  }
+
+  return finalMessages;
 }
 

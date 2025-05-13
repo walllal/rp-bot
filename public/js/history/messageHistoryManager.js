@@ -29,11 +29,15 @@ import * as domUtils from '../utils/domUtils.js';
 let messageHistoryFilterForm, messageHistoryContextTypeSelect, messageHistoryContextIdInput, // Now a select
     messageHistoryLimitInput, messageHistoryDeleteCountInput, deleteMessageHistoryBtn, messageHistoryOutputDiv;
 
+// Module-level variable to store the fetched bot ID
+let currentBotId = null;
+
 // Cached Data (Duplicated from chatHistoryManager - consider refactoring later)
 let cachedFriends = [];
 let cachedGroups = [];
 
-function renderMessageHistory(history) {
+// Update function signature to accept botId
+function renderMessageHistory(history, botIdToUse) {
     if (!messageHistoryOutputDiv) return;
     messageHistoryOutputDiv.innerHTML = '';
     if (!Array.isArray(history) || history.length === 0) {
@@ -44,70 +48,88 @@ function renderMessageHistory(history) {
     // and appended first, resulting in newest messages at the bottom.
     history.reverse();
     history.forEach(item => {
-        const p = document.createElement('p');
-        p.classList.add('message-history-item');
+        // Removed p declaration from here
 
-        let formattedMessage = '[消息内容解析失败]';
+        let messageContent = '';
         try {
             const rawMsg = item.rawMessage;
-            if (Array.isArray(rawMsg) && rawMsg.length > 0 && typeof rawMsg[0] === 'object' && 'type' in rawMsg[0]) {
-                formattedMessage = rawMsg
-                    .filter(contentItem => contentItem.type === 'text')
-                    .map(textItem => domUtils.escapeHtml(textItem.text || ''))
-                    .join(' ');
+            const isAdvancedMode = typeof item.messageId === 'string' && item.messageId.includes('advanced');
+            
+            if (Array.isArray(rawMsg) && rawMsg.length > 0 && typeof rawMsg[0] === 'object') {
+                // 提取原始消息内容
+                let combinedMessage = '';
+                
+                for (const segment of rawMsg) {
+                    if (segment.type === 'text' && segment.data && segment.data.text) {
+                        combinedMessage += segment.data.text;
+                    } else if (segment.type === 'image') {
+                        // 使用格式 <image>URL</image>
+                        combinedMessage += `<image>${segment.data.file}</image>`;
+                    } else if (segment.type === 'at' && segment.data && segment.data.qq) {
+                        combinedMessage += `<at>${segment.data.qq}</at>`;
+                    } else if (segment.text) {
+                        combinedMessage += segment.text;
+                    } else {
+                        combinedMessage += `[${segment.type || '未知类型'}]`;
+                    }
+                }
+                
+                if (!combinedMessage.trim()) {
+                    combinedMessage = '[空消息]';
+                }
+                
+                messageContent = combinedMessage;
             } else {
-                 formattedMessage = `[未知格式]: ${domUtils.escapeHtml(JSON.stringify(rawMsg))}`;
-            }
-            if (!formattedMessage.trim()) {
-                formattedMessage = '[空消息]';
+                messageContent = `[未知格式]: ${JSON.stringify(rawMsg)}`;
             }
         } catch (parseError) {
             console.error('解析 rawMessage 失败:', parseError, item.rawMessage);
-            formattedMessage = '[解析 rawMessage 时出错]';
+            messageContent = '[解析 rawMessage 时出错]';
         }
 
+        // Declare metadataParts once at the beginning of the loop iteration
         let metadataParts = [];
-        
-        // 调试：记录消息数据以便排查
-        console.debug("[MessageHistory] 消息项目:", {
-            userId: item.userId,
-            userName: item.userName,
-            botName: item.botName,
-            messageId: item.messageId,
-            systemBotId: window.botId
-        });
-            
+
         // 判断是否是机器人消息（以下任一条件成立）
-        // 1. 消息ID以bot_reply开头（这是机器人回复的明确标志）
         const isBotReplyMessage = typeof item.messageId === 'string' && item.messageId.startsWith('bot_reply');
-        
-        // 2. 用户ID与系统botId匹配
-        const isBotIdMatch = item.userId && window.botId && item.userId.toString() === window.botId.toString();
-        
-        // 3. userId是'assistant'（这是备用机器人ID）
+        const isBotAdvancedMessage = typeof item.messageId === 'string' && item.messageId.startsWith('bot_advanced_'); // Check for advanced preset messages
+        // Use the passed botIdToUse for matching
+        const isBotIdMatch = item.userId && botIdToUse && item.userId.toString() === botIdToUse.toString();
         const isAssistantId = item.userId === 'assistant';
-        
-        // 综合判断是否为机器人消息
-        const isBotMessage = isBotReplyMessage || isBotIdMatch || isAssistantId;
-            
+        // Combine checks (removed hardcoded isKnownBotId)
+        const isBotMessage = isBotReplyMessage || isBotAdvancedMessage || isBotIdMatch || isAssistantId;
+
+        // 如果是机器人消息，则跳过渲染 (使用 return 退出当前回调)
         if (isBotMessage) {
-            // 如果是机器人消息，并且设置了有效的botName，就显示"本机: [botName]"
-            // 如果没有设置有效的botName，就显示"本机: 助手"
-            if (item.botName && typeof item.botName === 'string' && item.botName.trim()) {
-                metadataParts.push(`本机: ${domUtils.escapeHtml(item.botName)}`);
-            } else {
-                metadataParts.push(`本机: 助手`);
-            }
-        } else {
-            metadataParts.push(`用户: ${domUtils.escapeHtml(item.userName || item.userId)}`);
+            return;
         }
+
+        // --- If it's not a bot message, proceed with rendering: ---
+
+        // Create the parent p element for non-bot messages
+        const p = document.createElement('p');
+        p.classList.add('message-history-item');
+
+        // Clear and populate metadataParts for non-bot messages
+        metadataParts = []; // Clear any potential previous values (though unlikely needed here)
+        metadataParts.push(`用户: ${domUtils.escapeHtml(item.userName || item.userId)}`);
         metadataParts.push(`发送者ID: ${item.userId}`);
         metadataParts.push(`时间: ${new Date(item.timestamp).toLocaleString()}`);
 
-        p.innerHTML = `
-            <small>${metadataParts.join(' | ')}</small>
-            <p>${formattedMessage}</p>
-        `;
+        // 创建元数据元素
+        const metadataElement = document.createElement('small');
+        metadataElement.textContent = metadataParts.join(' | ');
+        p.appendChild(metadataElement);
+        
+        // 创建内容元素 - 使用p标签，与chatHistoryManager保持一致
+        const contentElement = document.createElement('p');
+        // 使用 escapeHtml 处理内容，防止潜在的 XSS，并确保标签按文本显示
+        contentElement.innerHTML = domUtils.escapeHtml(messageContent);
+        // 移除 message-history-item p 的默认 margin，因为父元素已有 margin
+        contentElement.style.margin = '0';
+        
+        p.appendChild(contentElement);
+        
         messageHistoryOutputDiv.appendChild(p);
     });
     messageHistoryOutputDiv.scrollTop = messageHistoryOutputDiv.scrollHeight;
@@ -181,7 +203,8 @@ async function handleMessageHistoryFilterSubmit(event) {
     messageHistoryOutputDiv.innerHTML = '<p aria-busy="true">正在查询消息历史记录...</p>';
     try {
         const history = await apiService.getMessageHistory(contextType, contextId, limit);
-        renderMessageHistory(history);
+        // Pass the stored currentBotId to the render function
+        renderMessageHistory(history, currentBotId);
     } catch (error) {
         console.error('查询消息历史记录失败:', error);
         messageHistoryOutputDiv.innerHTML = '<p style="color: var(--pico-del-color);">查询消息历史记录失败</p>';
@@ -239,8 +262,11 @@ export async function initMessageHistoryManager() { // Make async
     try {
         const settings = await apiService.getSettings();
         if (settings && settings.onebotSelfId) {
-            window.botId = settings.onebotSelfId;
-            console.log("Got bot ID for message history:", window.botId);
+            // Store the fetched ID in the module-level variable
+            currentBotId = settings.onebotSelfId;
+            console.log("Stored bot ID for message history:", currentBotId);
+        } else {
+            console.warn("Message History: onebotSelfId not found in settings.");
         }
     } catch(error) {
         console.error("Error fetching bot ID for message history:", error);

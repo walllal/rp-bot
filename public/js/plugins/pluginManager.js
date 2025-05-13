@@ -15,8 +15,21 @@ function setupEventSource() {
         sseSource.close();
     }
     
+    // 获取认证令牌
+    const token = localStorage.getItem('authToken');
+    
+    if (!token) {
+        console.error('SSE连接失败：未找到认证令牌。请重新登录。');
+        // 可以在这里阻止连接尝试，或者让它自然失败并触发onerror
+        // 为了保持现有重试逻辑，我们暂时允许它失败
+        // return;
+    }
+
+    // 构建带有令牌的URL
+    const sseUrl = token ? `/api/plugins/events?token=${encodeURIComponent(token)}` : '/api/plugins/events';
+
     // 创建新的SSE连接
-    sseSource = new EventSource('/api/plugins/events');
+    sseSource = new EventSource(sseUrl);
     
     // 连接成功事件
     sseSource.addEventListener('connected', (event) => {

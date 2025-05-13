@@ -19,18 +19,14 @@ function _transformTextWithAtMentions(text: string, mode: string, selfId?: strin
         return processed.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trim()).join('\n');
     } else {
         // 高级模式：转换 [@...] 为 <at>...</at>
-        let tempContent = text;
-        if (selfId) {
-            // 替换 [@me]
-            tempContent = tempContent.replace(/\[@me\]/g, `<at>${selfId}</at>`);
-        }
-        // 替换其他 [@target]
-        // 正则表达式确保只匹配方括号内的非方括号字符，避免贪婪匹配问题
-        return tempContent.replace(/\[@([^\]]+)\]/g, (match, target) => {
+        return text.replace(/\[@([^\]]+)\]/g, (match, target) => {
             if (target === 'me') {
-                // 如果 selfId 未提供或因某种原因[@me]未被替换，则保留原始的[@me]
-                // 或者根据业务需求返回空字符串或特定标记
-                return match;
+                // 如果有 selfId，使用它替换 [@me]
+                if (selfId) {
+                    return `<at>${selfId}</at>`;
+                }
+                // 没有 selfId 时，返回一个通用标记
+                return `<at>me</at>`;
             }
             return `<at>${target}</at>`;
         });

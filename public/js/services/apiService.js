@@ -30,8 +30,8 @@ const fetchWithAuth = async (url, options = {}) => {
         },
     };
 
-    // Automatically set Content-Type and stringify body if it's an object for POST/PUT
-    if ((mergedOptions.method === 'POST' || mergedOptions.method === 'PUT') &&
+    // Automatically set Content-Type and stringify body if it's an object for POST/PUT/DELETE
+    if ((mergedOptions.method === 'POST' || mergedOptions.method === 'PUT' || mergedOptions.method === 'DELETE') &&
         mergedOptions.body && typeof mergedOptions.body === 'object' &&
         !(mergedOptions.body instanceof FormData)) {
         

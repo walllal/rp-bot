@@ -3,14 +3,9 @@ import { FastifyInstance } from 'fastify';
 import { OpenAIMessage, VariableContext, PresetContent, PresetItemSchema } from './types';
 import { substituteVariables } from './preset-processor';
 import { callOpenAI } from './openai-client';
-// import { getBotConfig } from '../onebot/connection'; // Assuming this will be created - Temp remove
+import { getBotConfig } from '../onebot/connection'; // 导入真实的 getBotConfig
 import { OpenAIRole } from './types'; // +++ Import OpenAIRole
-
-// Temporary getBotConfig until it's implemented in onebot/connection.ts
-function getBotConfig(): { selfId?: string | number } | null {
-    console.warn('[MainAiProcessor] Using temporary getBotConfig. Implement in onebot/connection.ts');
-    return null;
-}
+import { processAtMentionsInOpenAIMessages } from './message-utils'; // 导入处理 @ 的函数
 
 // Helper for logging within this module, similar to trigger-scheduler
 function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: string, serverInstance?: FastifyInstance, data?: any) {
@@ -33,29 +28,36 @@ function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: stri
 export async function processAndExecuteMainAi(
     config: Preset | DisguisePreset,
     contextType: DbContextType,
-    contextId: string,
+    contextId: string, // Group ID or User ID depending on contextType
+    senderUserId: string, // Always the ID of the user who sent the message
+    senderNickname: string | undefined, // Nickname of the sender
+    senderCard: string | undefined, // Group card name of the sender
     userInputText: string, // This is the "trigger message" or user's actual message
     serverInstance: FastifyInstance,
     // Optional: if the trigger provides a specific messageId to reply to (e.g., for threaded replies later)
-    replyToMessageId?: string 
+    replyToMessageId?: string,
+    replyToContent?: string // Added reply content
 ): Promise<string | null> {
     const botConnectionConfig = getBotConfig(); // To get self_id
     const selfId = botConnectionConfig?.selfId;
 
+    // Construct the complete VariableContext using all available info
     const variableContext: VariableContext = {
         timestamp: new Date(),
         botId: selfId ? String(selfId) : undefined,
         botName: config.botName || undefined,
-        userId: contextType === DbContextType.PRIVATE ? contextId : undefined,
-        groupId: contextType === DbContextType.GROUP ? contextId : undefined,
+        userId: senderUserId, // Always use the sender's ID
+        userNickname: senderNickname,
+        userCard: senderCard,
+        groupId: contextType === DbContextType.GROUP ? contextId : undefined, // Group ID only if it's a group chat
         isPrivateChat: contextType === DbContextType.PRIVATE ? 'yes' : 'no',
         isGroupChat: contextType === DbContextType.GROUP ? 'yes' : 'no',
-        message: userInputText, // Now part of VariableContext, used for {{user_input}}
-        // replyToMessageId, replyToSenderId, replyToContent would be undefined for initial timed triggers
-        // but could be populated if this function is also used for actual replies.
-        // For now, focusing on the timed trigger case.
-        // isReply: replyToMessageId ? 'yes' : 'no', // Example if handling actual replies
+        message: userInputText, // User's current message text
+        isReply: replyToMessageId ? 'yes' : 'no', // Check if it's a reply
+        replayContent: replyToContent, // Add the content being replied to
+        // Add other fields if needed, e.g., replyToSenderId if available
     };
+
 
     const presetLimits = {
         chatHistoryLimit: config.chatHistoryLimit ?? 10, // Default from schema
@@ -151,11 +153,18 @@ export async function processAndExecuteMainAi(
         return null;
     }
     
-    log('debug', `Calling Main AI for ${config.name} in context ${contextType}:${contextId}. Model: ${config.openaiModel}`, serverInstance, { messages: finalMessages });
+    // 处理消息中的 @ 提及，根据模式不同采取不同处理方式
+    const processedMessages = processAtMentionsInOpenAIMessages(
+        finalMessages,
+        config.mode, // 使用配置中的模式（STANDARD 或 ADVANCED）
+        variableContext.botId // 传入机器人 ID
+    );
+    
+    log('debug', `Calling Main AI for ${config.name} in context ${contextType}:${contextId}. Model: ${config.openaiModel}`, serverInstance, { messages: processedMessages });
 
     try {
         const mainAiResponseObj = await callOpenAI(
-            finalMessages,
+            processedMessages, // 使用处理过 @ 的消息
             { 
                 apiKey: config.openaiApiKey!, 
                 baseURL: config.openaiBaseUrl, 

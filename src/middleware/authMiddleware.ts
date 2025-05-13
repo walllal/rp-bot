@@ -41,14 +41,28 @@ export const authMiddleware = (
   
   // For all other /api/ routes, require authentication
   if (request.url.startsWith('/api/')) {
+    let token: string | undefined = undefined;
     const authHeader = request.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    // 1. Try getting token from Authorization header
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7); // Remove "Bearer " prefix
+    }
+
+    // 2. If not in header, try getting token from query parameter (for SSE etc.)
+    // Ensure request.query is treated as an object
+    const query = request.query as { [key: string]: string };
+    if (!token && query && query.token) {
+      token = query.token;
+    }
+
+    // 3. If token is still not found, deny access
+    if (!token) {
       reply.status(401).send({ success: false, message: 'Unauthorized: No token provided.' });
       return; // Important: stop further processing
     }
 
-    const token = authHeader.substring(7); // Remove "Bearer " prefix
+    // 4. Verify the found token
     const verificationResult = verifyToken(token);
 
     if (verificationResult.valid && verificationResult.decoded) {

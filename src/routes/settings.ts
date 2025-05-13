@@ -1,7 +1,7 @@
 import { FastifyInstance, FastifyPluginOptions, FastifyRequest, FastifyReply } from 'fastify';
 import { AppSettings } from '@prisma/client'; // Import the AppSettings type
 import { getAppSettings, updateAppSettings } from '../db/configStore'; // Import new db functions
-import { triggerOneBotReconnect } from '../onebot/connection';
+import { triggerOneBotReconnect, getBotConfig } from '../onebot/connection'; // +++ Import getBotConfig +++
 // Removed unused imports: cleanupOldHistory, prisma, DbContextType
 
 // Define the expected request body for updating settings
@@ -14,9 +14,20 @@ async function settingsRoutes(fastify: FastifyInstance, options: FastifyPluginOp
     fastify.get('/', async (request: FastifyRequest, reply: FastifyReply) => {
         try {
             // Use the new function, passing the logger
-            const settings = await getAppSettings(request.log);
+            const dbSettings = await getAppSettings(request.log);
             // The function now guarantees returning settings or throws/logs internally
-            return settings;
+
+            // +++ Get current bot connection info (including selfId) +++
+            const botInfo = getBotConfig();
+
+            // +++ Merge selfId into the settings object +++
+            // Create a new object to avoid modifying the original dbSettings potentially cached elsewhere
+            const settingsWithSelfId = {
+                ...dbSettings,
+                onebotSelfId: botInfo.selfId // Add selfId under the key frontend expects
+            };
+
+            return settingsWithSelfId; // Return the merged object
         } catch (error) {
             // This catch might be redundant if getAppSettings handles errors robustly,
             // but kept for safety.

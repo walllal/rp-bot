@@ -237,9 +237,19 @@ dialog footer {
     margin-bottom: 0.25rem;
     font-size: 0.8em;
 }
-.message-history-item p {
+.message-history-item p, .message-history-item .message-content {
     margin: 0;
     word-break: break-word; /* Prevent long strings from breaking layout */
+    background-color: transparent; /* 确保背景透明 */
+    padding: 0; /* 去除内边距 */
+}
+
+/* 去除消息内容区域的特殊样式 */
+.message-history-item .message-content {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
 }
 
 /* Access Control List Styling */
