@@ -30,11 +30,21 @@ interface PresetBody {
   openaiApiKey?: string | null;
   openaiBaseUrl?: string | null;
   openaiModel?: string;
+  openaiMaxTokens?: number | null;
+  openaiTemperature?: number | null;
+  openaiFrequencyPenalty?: number | null;
+  openaiPresencePenalty?: number | null;
+  openaiTopP?: number | null;
   // 联网设置
   allowWebSearch?: boolean;
   webSearchApiKey?: string | null;
   webSearchBaseUrl?: string | null;
   webSearchModel?: string;
+  webSearchOpenaiMaxTokens?: number | null;
+  webSearchOpenaiTemperature?: number | null;
+  webSearchOpenaiFrequencyPenalty?: number | null;
+  webSearchOpenaiPresencePenalty?: number | null;
+  webSearchOpenaiTopP?: number | null;
   webSearchSystemPrompt?: string | null; // 新增
   // 新增高级触发设置
   timedTriggerEnabled?: boolean;
@@ -45,6 +55,11 @@ interface PresetBody {
   aiTriggerApiKey?: string | null;
   aiTriggerBaseUrl?: string | null;
   aiTriggerModel?: string | null;
+  aiTriggerOpenaiMaxTokens?: number | null;
+  aiTriggerOpenaiTemperature?: number | null;
+  aiTriggerOpenaiFrequencyPenalty?: number | null;
+  aiTriggerOpenaiPresencePenalty?: number | null;
+  aiTriggerOpenaiTopP?: number | null;
   aiTriggerKeyword?: string | null;
   aiTriggerKeywordFuzzyMatch?: boolean; // 新增
   aiTriggerSystemPrompt?: string | null;
@@ -75,11 +90,21 @@ const ImportPresetItemSchema = z.object({
     openaiApiKey: z.string().nullable().optional(),
     openaiBaseUrl: z.string().url().nullable().optional(),
     openaiModel: z.string().optional().default('gpt-3.5-turbo'),
+    openaiMaxTokens: z.number().int().min(1).nullable().optional().default(1024),
+    openaiTemperature: z.number().min(0).max(2).nullable().optional().default(1.0),
+    openaiFrequencyPenalty: z.number().min(-2).max(2).nullable().optional().default(0.0),
+    openaiPresencePenalty: z.number().min(-2).max(2).nullable().optional().default(0.0),
+    openaiTopP: z.number().min(0).max(1).nullable().optional().default(1.0),
     // 联网设置
     allowWebSearch: z.boolean().optional().default(false),
     webSearchApiKey: z.string().nullable().optional(),
     webSearchBaseUrl: z.string().url().nullable().optional(),
     webSearchModel: z.string().optional().default('gemini-2.0-flash'),
+    webSearchOpenaiMaxTokens: z.number().int().min(1).nullable().optional().default(1024),
+    webSearchOpenaiTemperature: z.number().min(0).max(2).nullable().optional().default(1.0),
+    webSearchOpenaiFrequencyPenalty: z.number().min(-2).max(2).nullable().optional().default(0.0),
+    webSearchOpenaiPresencePenalty: z.number().min(-2).max(2).nullable().optional().default(0.0),
+    webSearchOpenaiTopP: z.number().min(0).max(1).nullable().optional().default(1.0),
     webSearchSystemPrompt: z.string().nullable().optional(), // 新增
     // 新增高级触发设置 for Zod schema
     timedTriggerEnabled: z.boolean().optional().default(false),
@@ -90,6 +115,11 @@ const ImportPresetItemSchema = z.object({
     aiTriggerApiKey: z.string().nullable().optional(),
     aiTriggerBaseUrl: z.string().url().nullable().optional(),
     aiTriggerModel: z.string().nullable().optional().default('gpt-3.5-turbo'), // Prisma schema default is not used by createMany
+    aiTriggerOpenaiMaxTokens: z.number().int().min(1).nullable().optional().default(1024),
+    aiTriggerOpenaiTemperature: z.number().min(0).max(2).nullable().optional().default(1.0),
+    aiTriggerOpenaiFrequencyPenalty: z.number().min(-2).max(2).nullable().optional().default(0.0),
+    aiTriggerOpenaiPresencePenalty: z.number().min(-2).max(2).nullable().optional().default(0.0),
+    aiTriggerOpenaiTopP: z.number().min(0).max(1).nullable().optional().default(1.0),
     aiTriggerKeyword: z.string().nullable().optional(),
     aiTriggerKeywordFuzzyMatch: z.boolean().optional().default(false), // 新增 for Zod
     aiTriggerSystemPrompt: z.string().nullable().optional(),
@@ -142,19 +172,23 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
         nameTriggered, nicknameTriggered, atTriggered, replyTriggered,
         // 新增的应用和模型设置
         chatHistoryLimit, messageHistoryLimit, openaiApiKey, openaiBaseUrl, openaiModel,
+        openaiMaxTokens, openaiTemperature, openaiFrequencyPenalty, openaiPresencePenalty, openaiTopP,
         // 联网设置
         allowWebSearch,
         webSearchApiKey,
         webSearchBaseUrl,
         webSearchModel,
+        webSearchOpenaiMaxTokens, webSearchOpenaiTemperature, webSearchOpenaiFrequencyPenalty, webSearchOpenaiPresencePenalty, webSearchOpenaiTopP,
         webSearchSystemPrompt, // 新增
         // 新增高级触发设置
         timedTriggerEnabled, timedTriggerInterval,
         quantitativeTriggerEnabled, quantitativeTriggerThreshold,
         aiTriggerEnabled, aiTriggerApiKey,
-        aiTriggerBaseUrl, aiTriggerModel, aiTriggerKeyword, aiTriggerKeywordFuzzyMatch, // 新增
+        aiTriggerBaseUrl, aiTriggerModel,
+        aiTriggerOpenaiMaxTokens, aiTriggerOpenaiTemperature, aiTriggerOpenaiFrequencyPenalty, aiTriggerOpenaiPresencePenalty, aiTriggerOpenaiTopP,
+        aiTriggerKeyword, aiTriggerKeywordFuzzyMatch, // 新增
         aiTriggerSystemPrompt, aiTriggerUserPrompt
-    } = request.body;
+           } = request.body;
 
     // Basic validation
     if (!name || !Array.isArray(content)) {
@@ -268,11 +302,13 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
           openaiApiKey,
           openaiBaseUrl,
           openaiModel,
+          openaiMaxTokens, openaiTemperature, openaiFrequencyPenalty, openaiPresencePenalty, openaiTopP,
           // 联网设置
           allowWebSearch,
           webSearchApiKey,
           webSearchBaseUrl,
           webSearchModel,
+          webSearchOpenaiMaxTokens, webSearchOpenaiTemperature, webSearchOpenaiFrequencyPenalty, webSearchOpenaiPresencePenalty, webSearchOpenaiTopP,
           webSearchSystemPrompt, // 新增
           // 新增高级触发设置
           timedTriggerEnabled,
@@ -283,6 +319,7 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
           aiTriggerApiKey,
           aiTriggerBaseUrl,
           aiTriggerModel,
+          aiTriggerOpenaiMaxTokens, aiTriggerOpenaiTemperature, aiTriggerOpenaiFrequencyPenalty, aiTriggerOpenaiPresencePenalty, aiTriggerOpenaiTopP,
           aiTriggerKeyword,
           aiTriggerKeywordFuzzyMatch, // 新增
           aiTriggerSystemPrompt,
@@ -341,19 +378,23 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
         nameTriggered, nicknameTriggered, atTriggered, replyTriggered,
         // 新增的应用和模型设置
         chatHistoryLimit, messageHistoryLimit, openaiApiKey, openaiBaseUrl, openaiModel,
+        openaiMaxTokens, openaiTemperature, openaiFrequencyPenalty, openaiPresencePenalty, openaiTopP,
         // 联网设置
         allowWebSearch,
         webSearchApiKey,
         webSearchBaseUrl,
         webSearchModel,
+        webSearchOpenaiMaxTokens, webSearchOpenaiTemperature, webSearchOpenaiFrequencyPenalty, webSearchOpenaiPresencePenalty, webSearchOpenaiTopP,
         webSearchSystemPrompt, // 新增
         // 新增高级触发设置
         timedTriggerEnabled, timedTriggerInterval,
         quantitativeTriggerEnabled, quantitativeTriggerThreshold,
         aiTriggerEnabled, aiTriggerApiKey,
-        aiTriggerBaseUrl, aiTriggerModel, aiTriggerKeyword, aiTriggerKeywordFuzzyMatch, // 新增
+        aiTriggerBaseUrl, aiTriggerModel,
+        aiTriggerOpenaiMaxTokens, aiTriggerOpenaiTemperature, aiTriggerOpenaiFrequencyPenalty, aiTriggerOpenaiPresencePenalty, aiTriggerOpenaiTopP,
+        aiTriggerKeyword, aiTriggerKeywordFuzzyMatch, // 新增
         aiTriggerSystemPrompt, aiTriggerUserPrompt
-    } = request.body;
+           } = request.body;
 
       // --- Validation ---
       // At least one field must be provided for update, but the DB function handles empty updates gracefully.
@@ -474,11 +515,21 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
           if (openaiApiKey !== undefined) updateData.openaiApiKey = openaiApiKey; // Will pass null if provided as null
           if (openaiBaseUrl !== undefined) updateData.openaiBaseUrl = openaiBaseUrl; // Will pass null if provided as null
           if (openaiModel !== undefined) updateData.openaiModel = openaiModel;
+          if (openaiMaxTokens !== undefined) updateData.openaiMaxTokens = openaiMaxTokens;
+          if (openaiTemperature !== undefined) updateData.openaiTemperature = openaiTemperature;
+          if (openaiFrequencyPenalty !== undefined) updateData.openaiFrequencyPenalty = openaiFrequencyPenalty;
+          if (openaiPresencePenalty !== undefined) updateData.openaiPresencePenalty = openaiPresencePenalty;
+          if (openaiTopP !== undefined) updateData.openaiTopP = openaiTopP;
           // 联网设置
           if (allowWebSearch !== undefined) updateData.allowWebSearch = allowWebSearch;
           if (webSearchApiKey !== undefined) updateData.webSearchApiKey = webSearchApiKey;
           if (webSearchBaseUrl !== undefined) updateData.webSearchBaseUrl = webSearchBaseUrl;
           if (webSearchModel !== undefined) updateData.webSearchModel = webSearchModel;
+          if (webSearchOpenaiMaxTokens !== undefined) updateData.webSearchOpenaiMaxTokens = webSearchOpenaiMaxTokens;
+          if (webSearchOpenaiTemperature !== undefined) updateData.webSearchOpenaiTemperature = webSearchOpenaiTemperature;
+          if (webSearchOpenaiFrequencyPenalty !== undefined) updateData.webSearchOpenaiFrequencyPenalty = webSearchOpenaiFrequencyPenalty;
+          if (webSearchOpenaiPresencePenalty !== undefined) updateData.webSearchOpenaiPresencePenalty = webSearchOpenaiPresencePenalty;
+          if (webSearchOpenaiTopP !== undefined) updateData.webSearchOpenaiTopP = webSearchOpenaiTopP;
           if (webSearchSystemPrompt !== undefined) updateData.webSearchSystemPrompt = webSearchSystemPrompt; // 新增
           // 新增高级触发设置
           if (timedTriggerEnabled !== undefined) updateData.timedTriggerEnabled = timedTriggerEnabled;
@@ -489,11 +540,16 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
           if (aiTriggerApiKey !== undefined) updateData.aiTriggerApiKey = aiTriggerApiKey; // handles null
           if (aiTriggerBaseUrl !== undefined) updateData.aiTriggerBaseUrl = aiTriggerBaseUrl; // handles null
           if (aiTriggerModel !== undefined) updateData.aiTriggerModel = aiTriggerModel; // handles null
+          if (aiTriggerOpenaiMaxTokens !== undefined) updateData.aiTriggerOpenaiMaxTokens = aiTriggerOpenaiMaxTokens;
+          if (aiTriggerOpenaiTemperature !== undefined) updateData.aiTriggerOpenaiTemperature = aiTriggerOpenaiTemperature;
+          if (aiTriggerOpenaiFrequencyPenalty !== undefined) updateData.aiTriggerOpenaiFrequencyPenalty = aiTriggerOpenaiFrequencyPenalty;
+          if (aiTriggerOpenaiPresencePenalty !== undefined) updateData.aiTriggerOpenaiPresencePenalty = aiTriggerOpenaiPresencePenalty;
+          if (aiTriggerOpenaiTopP !== undefined) updateData.aiTriggerOpenaiTopP = aiTriggerOpenaiTopP;
           if (aiTriggerKeyword !== undefined) updateData.aiTriggerKeyword = aiTriggerKeyword; // handles null
           if (aiTriggerKeywordFuzzyMatch !== undefined) updateData.aiTriggerKeywordFuzzyMatch = aiTriggerKeywordFuzzyMatch; // 新增
           if (aiTriggerSystemPrompt !== undefined) updateData.aiTriggerSystemPrompt = aiTriggerSystemPrompt; // handles null
           if (aiTriggerUserPrompt !== undefined) updateData.aiTriggerUserPrompt = aiTriggerUserPrompt; // handles null
-  
+          
           const updatedPreset = await updatePreset(presetId, updateData); // Use the DB function
 
           // +++ Update timed trigger for the updated preset +++
@@ -536,11 +592,26 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
           }
           reply.status(500).send({ error: '删除预设失败' });
       }
-  });
-
-  // --- POST /api/presets/import - 导入预设 ---
-  fastify.post('/import', async (request: FastifyRequest<{ Body: unknown }>, reply: FastifyReply) => {
-    let validatedBody: ValidatedImportPresetsBody;
+    });
+  
+    // --- GET /api/presets/export - 导出所有预设 ---
+    fastify.get('/export', async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        const presets = await prisma.preset.findMany({
+          orderBy: { name: 'asc' }, // Optional: order by name for consistency
+        });
+        // Prisma findMany without select returns all fields by default
+        reply.header('Content-Disposition', 'attachment; filename="presets_export.json"');
+        reply.send(presets);
+      } catch (error) {
+        request.log.error('导出预设失败:', error);
+        reply.status(500).send({ error: '导出预设失败' });
+      }
+    });
+  
+    // --- POST /api/presets/import - 导入预设 ---
+    fastify.post('/import', async (request: FastifyRequest<{ Body: unknown }>, reply: FastifyReply) => {
+      let validatedBody: ValidatedImportPresetsBody;
 
     // Validate the entire request body using Zod
     try {
@@ -591,11 +662,21 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
         openaiApiKey: preset.openaiApiKey, // Can be null
         openaiBaseUrl: preset.openaiBaseUrl, // Can be null
         openaiModel: preset.openaiModel, // Has default in Zod
+        openaiMaxTokens: preset.openaiMaxTokens,
+        openaiTemperature: preset.openaiTemperature,
+        openaiFrequencyPenalty: preset.openaiFrequencyPenalty,
+        openaiPresencePenalty: preset.openaiPresencePenalty,
+        openaiTopP: preset.openaiTopP,
         // 联网设置
         allowWebSearch: preset.allowWebSearch,
         webSearchApiKey: preset.webSearchApiKey,
         webSearchBaseUrl: preset.webSearchBaseUrl,
         webSearchModel: preset.webSearchModel,
+        webSearchOpenaiMaxTokens: preset.webSearchOpenaiMaxTokens,
+        webSearchOpenaiTemperature: preset.webSearchOpenaiTemperature,
+        webSearchOpenaiFrequencyPenalty: preset.webSearchOpenaiFrequencyPenalty,
+        webSearchOpenaiPresencePenalty: preset.webSearchOpenaiPresencePenalty,
+        webSearchOpenaiTopP: preset.webSearchOpenaiTopP,
         webSearchSystemPrompt: preset.webSearchSystemPrompt, // 新增
         // 新增高级触发设置 for import (rely on Zod defaults)
         timedTriggerEnabled: preset.timedTriggerEnabled,
@@ -606,6 +687,11 @@ async function presetRoutes(fastify: FastifyInstance, options: FastifyPluginOpti
         aiTriggerApiKey: preset.aiTriggerApiKey,
         aiTriggerBaseUrl: preset.aiTriggerBaseUrl,
         aiTriggerModel: preset.aiTriggerModel,
+        aiTriggerOpenaiMaxTokens: preset.aiTriggerOpenaiMaxTokens,
+        aiTriggerOpenaiTemperature: preset.aiTriggerOpenaiTemperature,
+        aiTriggerOpenaiFrequencyPenalty: preset.aiTriggerOpenaiFrequencyPenalty,
+        aiTriggerOpenaiPresencePenalty: preset.aiTriggerOpenaiPresencePenalty,
+        aiTriggerOpenaiTopP: preset.aiTriggerOpenaiTopP,
         aiTriggerKeyword: preset.aiTriggerKeyword,
         aiTriggerKeywordFuzzyMatch: preset.aiTriggerKeywordFuzzyMatch, // 新增
         aiTriggerSystemPrompt: preset.aiTriggerSystemPrompt,

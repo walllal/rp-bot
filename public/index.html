@@ -578,6 +578,13 @@
                             OneBot Access Token (可选)
                             <input type="password" id="setting-onebot-access-token" name="onebotAccessToken" placeholder="可选的访问令牌">
                         </label>
+<!-- +++ 新增 Bot ID 输入框 +++ -->
+        <label for="setting-bot-id">
+            机器人 QQ 号 (Bot ID)
+            <input type="text" id="setting-bot-id" name="botId" placeholder="机器人自身的 QQ 号">
+            <small>用于识别机器人自身，例如处理 @ 提及和记录消息发送者。</small>
+        </label>
+        <!-- +++ 结束新增 +++ -->
                         <label for="setting-onebot-reconnect-interval">
                             OneBot 正向 WebSocket 重连间隔 (毫秒, 仅在正向模式时生效)
                             <input type="number" id="setting-onebot-reconnect-interval" name="onebotReconnectInterval" min="1000" step="1000" placeholder="5000">
@@ -783,6 +790,26 @@
                                 <input type="text" id="preset-settings-openai-model" name="openaiModel" required placeholder="gpt-3.5-turbo">
                                 <small>指定要使用的 OpenAI 模型。</small>
                             </label>
+                            <!-- OpenAI Advanced Params -->
+                            <label for="preset-settings-openai-max-tokens">最大回复长度 (Max Tokens)
+                                <input type="number" id="preset-settings-openai-max-tokens" name="openaiMaxTokens" min="1" placeholder="1024">
+                            </label>
+                            <div class="form-group slider-group">
+                                <label for="preset-settings-openai-temperature">温度 (Temperature): <span id="preset-settings-openai-temperature-value">1.0</span></label>
+                                <input type="range" id="preset-settings-openai-temperature" name="openaiTemperature" min="0" max="2" step="0.01" value="1.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="preset-settings-openai-frequency-penalty">频率惩罚 (Frequency Penalty): <span id="preset-settings-openai-frequency-penalty-value">0.0</span></label>
+                                <input type="range" id="preset-settings-openai-frequency-penalty" name="openaiFrequencyPenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="preset-settings-openai-presence-penalty">存在惩罚 (Presence Penalty): <span id="preset-settings-openai-presence-penalty-value">0.0</span></label>
+                                <input type="range" id="preset-settings-openai-presence-penalty" name="openaiPresencePenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="preset-settings-openai-top-p">Top P: <span id="preset-settings-openai-top-p-value">1.0</span></label>
+                                <input type="range" id="preset-settings-openai-top-p" name="openaiTopP" min="0" max="1" step="0.01" value="1.0">
+                            </div>
                         </div>
 
                         <!-- Web Search Settings -->
@@ -811,6 +838,26 @@
                                 <input type="text" id="preset-settings-web-search-model" name="webSearchModel" required placeholder="gemini-2.0-flash">
                                 <small>指定要用于联网搜索的模型</small>
                             </label>
+                            <!-- Web Search OpenAI Advanced Params -->
+                            <label for="preset-settings-web-search-openai-max-tokens">联网最大回复长度
+                                <input type="number" id="preset-settings-web-search-openai-max-tokens" name="webSearchOpenaiMaxTokens" min="1" placeholder="1024">
+                            </label>
+                            <div class="form-group slider-group">
+                                <label for="preset-settings-web-search-openai-temperature">联网温度: <span id="preset-settings-web-search-openai-temperature-value">1.0</span></label>
+                                <input type="range" id="preset-settings-web-search-openai-temperature" name="webSearchOpenaiTemperature" min="0" max="2" step="0.01" value="1.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="preset-settings-web-search-openai-frequency-penalty">联网频率惩罚: <span id="preset-settings-web-search-openai-frequency-penalty-value">0.0</span></label>
+                                <input type="range" id="preset-settings-web-search-openai-frequency-penalty" name="webSearchOpenaiFrequencyPenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="preset-settings-web-search-openai-presence-penalty">联网存在惩罚: <span id="preset-settings-web-search-openai-presence-penalty-value">0.0</span></label>
+                                <input type="range" id="preset-settings-web-search-openai-presence-penalty" name="webSearchOpenaiPresencePenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="preset-settings-web-search-openai-top-p">联网Top P: <span id="preset-settings-web-search-openai-top-p-value">1.0</span></label>
+                                <input type="range" id="preset-settings-web-search-openai-top-p" name="webSearchOpenaiTopP" min="0" max="1" step="0.01" value="1.0">
+                            </div>
                             <label for="preset-settings-web-search-system-prompt">
                                 联网搜索系统提示词 (可选)
                                 <textarea id="preset-settings-web-search-system-prompt" name="webSearchSystemPrompt" rows="3" placeholder="例如：你是一个高效的信息检索助手，请根据用户的问题联网搜索并提供简洁的答案。"></textarea>
@@ -898,6 +945,26 @@
                                  <input type="text" id="preset-settings-ai-trigger-model" name="aiTriggerModel" placeholder="gpt-3.5-turbo">
                                  <small>指定用于AI触发判断的模型。</small>
                              </label>
+                             <!-- AI Trigger OpenAI Advanced Params -->
+                             <label for="preset-settings-ai-trigger-openai-max-tokens">AI触发最大回复长度
+                                 <input type="number" id="preset-settings-ai-trigger-openai-max-tokens" name="aiTriggerOpenaiMaxTokens" min="1" placeholder="1024">
+                             </label>
+                             <div class="form-group slider-group">
+                                 <label for="preset-settings-ai-trigger-openai-temperature">AI触发温度: <span id="preset-settings-ai-trigger-openai-temperature-value">1.0</span></label>
+                                 <input type="range" id="preset-settings-ai-trigger-openai-temperature" name="aiTriggerOpenaiTemperature" min="0" max="2" step="0.01" value="1.0">
+                             </div>
+                             <div class="form-group slider-group">
+                                 <label for="preset-settings-ai-trigger-openai-frequency-penalty">AI触发频率惩罚: <span id="preset-settings-ai-trigger-openai-frequency-penalty-value">0.0</span></label>
+                                 <input type="range" id="preset-settings-ai-trigger-openai-frequency-penalty" name="aiTriggerOpenaiFrequencyPenalty" min="-2" max="2" step="0.01" value="0.0">
+                             </div>
+                             <div class="form-group slider-group">
+                                 <label for="preset-settings-ai-trigger-openai-presence-penalty">AI触发存在惩罚: <span id="preset-settings-ai-trigger-openai-presence-penalty-value">0.0</span></label>
+                                 <input type="range" id="preset-settings-ai-trigger-openai-presence-penalty" name="aiTriggerOpenaiPresencePenalty" min="-2" max="2" step="0.01" value="0.0">
+                             </div>
+                             <div class="form-group slider-group">
+                                 <label for="preset-settings-ai-trigger-openai-top-p">AI触发Top P: <span id="preset-settings-ai-trigger-openai-top-p-value">1.0</span></label>
+                                 <input type="range" id="preset-settings-ai-trigger-openai-top-p" name="aiTriggerOpenaiTopP" min="0" max="1" step="0.01" value="1.0">
+                             </div>
                              <label for="preset-settings-ai-trigger-keyword">
                                  AI触发关键词
                                  <input type="text" id="preset-settings-ai-trigger-keyword" name="aiTriggerKeyword" placeholder="例如：#触发主AI#">
@@ -1309,6 +1376,26 @@
                                 <input type="text" id="disguise-settings-ai-trigger-model" name="aiTriggerModel" placeholder="gpt-3.5-turbo">
                                 <small>指定用于AI触发判断的模型。</small>
                             </label>
+                            <!-- AI Trigger OpenAI Advanced Params -->
+                            <label for="disguise-settings-ai-trigger-openai-max-tokens">AI触发最大回复长度
+                                <input type="number" id="disguise-settings-ai-trigger-openai-max-tokens" name="aiTriggerOpenaiMaxTokens" min="1" placeholder="1024">
+                            </label>
+                            <div class="form-group slider-group">
+                                <label for="disguise-settings-ai-trigger-openai-temperature">AI触发温度: <span id="disguise-settings-ai-trigger-openai-temperature-value">1.0</span></label>
+                                <input type="range" id="disguise-settings-ai-trigger-openai-temperature" name="aiTriggerOpenaiTemperature" min="0" max="2" step="0.01" value="1.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-settings-ai-trigger-openai-frequency-penalty">AI触发频率惩罚: <span id="disguise-settings-ai-trigger-openai-frequency-penalty-value">0.0</span></label>
+                                <input type="range" id="disguise-settings-ai-trigger-openai-frequency-penalty" name="aiTriggerOpenaiFrequencyPenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-settings-ai-trigger-openai-presence-penalty">AI触发存在惩罚: <span id="disguise-settings-ai-trigger-openai-presence-penalty-value">0.0</span></label>
+                                <input type="range" id="disguise-settings-ai-trigger-openai-presence-penalty" name="aiTriggerOpenaiPresencePenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-settings-ai-trigger-openai-top-p">AI触发Top P: <span id="disguise-settings-ai-trigger-openai-top-p-value">1.0</span></label>
+                                <input type="range" id="disguise-settings-ai-trigger-openai-top-p" name="aiTriggerOpenaiTopP" min="0" max="1" step="0.01" value="1.0">
+                            </div>
                             <label for="disguise-settings-ai-trigger-keyword">
                                 AI触发关键词
                                 <input type="text" id="disguise-settings-ai-trigger-keyword" name="aiTriggerKeyword" placeholder="例如：#触发主AI#">

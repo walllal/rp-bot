@@ -6,10 +6,10 @@ import { OpenAIMessage, UserMessageContentItem } from './types';
  *
  * @param text 原始文本字符串
  * @param mode 当前配置的模式 ('STANDARD' 或 'ADVANCED')
- * @param selfId 机器人自身的 QQ 号 (仅在高级模式转换 [@me] 时需要)
+ * @param botId 机器人自身的 QQ 号 (仅在高级模式转换 [@me] 时需要)
  * @returns 处理后的文本字符串
  */
-function _transformTextWithAtMentions(text: string, mode: string, selfId?: string): string {
+function _transformTextWithAtMentions(text: string, mode: string, botId?: string): string { // Changed selfId to botId
     if (mode !== 'ADVANCED') {
         // 非高级模式：移除 [@...]
         // 仅规范化水平空白字符，保留换行符
@@ -21,11 +21,11 @@ function _transformTextWithAtMentions(text: string, mode: string, selfId?: strin
         // 高级模式：转换 [@...] 为 <at>...</at>
         return text.replace(/\[@([^\]]+)\]/g, (match, target) => {
             if (target === 'me') {
-                // 如果有 selfId，使用它替换 [@me]
-                if (selfId) {
-                    return `<at>${selfId}</at>`;
+                // 如果有 botId，使用它替换 [@me]
+                if (botId) { // Changed selfId to botId
+                    return `<at>${botId}</at>`; // Changed selfId to botId
                 }
-                // 没有 selfId 时，返回一个通用标记
+                // 没有 botId 时，返回一个通用标记
                 return `<at>me</at>`;
             }
             return `<at>${target}</at>`;
@@ -38,22 +38,22 @@ function _transformTextWithAtMentions(text: string, mode: string, selfId?: strin
  *
  * @param messages 原始的 OpenAIMessage 数组
  * @param mode 当前配置的模式 ('STANDARD' 或 'ADVANCED')
- * @param selfId 机器人自身的 QQ 号
+ * @param botId 机器人自身的 QQ 号
  * @returns 处理后的 OpenAIMessage 数组
  */
 export function processAtMentionsInOpenAIMessages(
     messages: OpenAIMessage[],
     mode: string,
-    selfId?: string
+    botId?: string // Changed selfId to botId
 ): OpenAIMessage[] {
     return messages.map(message => {
         const newMessage = { ...message }; // 浅拷贝以修改 content
         if (typeof newMessage.content === 'string') {
-            newMessage.content = _transformTextWithAtMentions(newMessage.content, mode, selfId);
+            newMessage.content = _transformTextWithAtMentions(newMessage.content, mode, botId); // Changed selfId to botId
         } else { // content is UserMessageContentItem[]
             newMessage.content = newMessage.content.map(item => {
                 if (item.type === 'text') {
-                    return { ...item, text: _transformTextWithAtMentions(item.text, mode, selfId) };
+                    return { ...item, text: _transformTextWithAtMentions(item.text, mode, botId) }; // Changed selfId to botId
                 }
                 return item;
             });
@@ -67,15 +67,15 @@ export function processAtMentionsInOpenAIMessages(
  *
  * @param text 原始用户消息文本
  * @param mode 当前配置的模式 ('STANDARD' 或 'ADVANCED')
- * @param selfId 机器人自身的 QQ 号
+ * @param botId 机器人自身的 QQ 号
  * @returns 处理后的文本字符串
  */
 export function transformUserTextForHistory(
     text: string,
     mode: string,
-    selfId?: string
+    botId?: string // Changed selfId to botId
 ): string {
-    return _transformTextWithAtMentions(text, mode, selfId);
+    return _transformTextWithAtMentions(text, mode, botId); // Changed selfId to botId
 }
 
 /**
@@ -83,17 +83,17 @@ export function transformUserTextForHistory(
  *
  * @param contentItems 原始用户消息内容项数组
  * @param mode 当前配置的模式 ('STANDARD' 或 'ADVANCED')
- * @param selfId 机器人自身的 QQ 号
+ * @param botId 机器人自身的 QQ 号
  * @returns 处理后的 UserMessageContentItem 数组
  */
 export function transformUserMessageContentForHistory(
     contentItems: UserMessageContentItem[],
     mode: string,
-    selfId?: string
+    botId?: string // Changed selfId to botId
 ): UserMessageContentItem[] {
     return contentItems.map(item => {
         if (item.type === 'text') {
-            const newText = _transformTextWithAtMentions(item.text, mode, selfId);
+            const newText = _transformTextWithAtMentions(item.text, mode, botId); // Changed selfId to botId
             // 如果处理后文本为空，可以考虑是否要保留这个 text item
             // 当前逻辑是保留，即使 text 为空字符串
             return { ...item, text: newText };

@@ -32,6 +32,7 @@ const defaultAppSettings: Omit<AppSettings, 'id' | 'createdAt' | 'updatedAt'> = 
     presetFeatureEnabled: true,
     disguiseFeatureEnabled: false,
     pluginSettings: "{}", // Default as an empty JSON string
+    botId: null, // 新增：默认 Bot ID 为 null
 };
 
 /**

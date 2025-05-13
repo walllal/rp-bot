@@ -16,18 +16,9 @@ async function settingsRoutes(fastify: FastifyInstance, options: FastifyPluginOp
             // Use the new function, passing the logger
             const dbSettings = await getAppSettings(request.log);
             // The function now guarantees returning settings or throws/logs internally
-
-            // +++ Get current bot connection info (including selfId) +++
-            const botInfo = getBotConfig();
-
-            // +++ Merge selfId into the settings object +++
-            // Create a new object to avoid modifying the original dbSettings potentially cached elsewhere
-            const settingsWithSelfId = {
-                ...dbSettings,
-                onebotSelfId: botInfo.selfId // Add selfId under the key frontend expects
-            };
-
-            return settingsWithSelfId; // Return the merged object
+            // The settings object from getAppSettings now includes botId if set.
+            // No need to merge selfId dynamically anymore.
+            return dbSettings; // Return the settings object directly
         } catch (error) {
             // This catch might be redundant if getAppSettings handles errors robustly,
             // but kept for safety.

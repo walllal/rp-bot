@@ -21,46 +21,59 @@ async function handleDisguisePresetSettingsFormSubmit(event) {
 
     // Read data from the disguise form elements
     const settingsData = {
-        mode: disguisePresetSettingsForm.elements['mode'].checked ? 'ADVANCED' : 'STANDARD',
+        // Basic Settings
         botName: disguisePresetSettingsForm.elements['botName'].value.trim() || null,
         botNicknames: disguisePresetSettingsForm.elements['botNicknames'].value.trim() || null,
+        chatHistoryLimit: parseInt(disguisePresetSettingsForm.elements['chatHistoryLimit'].value, 10) || 10,
+        messageHistoryLimit: parseInt(disguisePresetSettingsForm.elements['messageHistoryLimit'].value, 10) || 10,
+        // Feature Settings
+        mode: disguisePresetSettingsForm.elements['mode'].checked ? 'ADVANCED' : 'STANDARD',
         advancedModeMessageDelay: parseInt(disguisePresetSettingsForm.elements['advancedModeMessageDelay'].value, 10) || 1000,
         botFuzzyMatchEnabled: disguisePresetSettingsForm.elements['botFuzzyMatchEnabled'].checked,
         allowImageInput: disguisePresetSettingsForm.elements['allowImageInput'].checked,
         allowVoiceOutput: disguisePresetSettingsForm.elements['allowVoiceOutput'].checked,
-        // Standard Triggers
-        nameTriggered: disguisePresetSettingsForm.elements['nameTriggered'].checked,
-        nicknameTriggered: disguisePresetSettingsForm.elements['nicknameTriggered'].checked,
-        atTriggered: disguisePresetSettingsForm.elements['atTriggered'].checked,
-        replyTriggered: disguisePresetSettingsForm.elements['replyTriggered'].checked,
-        // Timed Trigger
-        timedTriggerEnabled: disguisePresetSettingsForm.elements['timedTriggerEnabled'].checked,
-        timedTriggerInterval: disguisePresetSettingsForm.elements['timedTriggerInterval'].value ? parseInt(disguisePresetSettingsForm.elements['timedTriggerInterval'].value, 10) : null,
-        // Quantitative Trigger
-        quantitativeTriggerEnabled: disguisePresetSettingsForm.elements['quantitativeTriggerEnabled'].checked,
-        quantitativeTriggerThreshold: disguisePresetSettingsForm.elements['quantitativeTriggerThreshold'].value ? parseInt(disguisePresetSettingsForm.elements['quantitativeTriggerThreshold'].value, 10) : null,
-        // AI Trigger (aiTriggerEnabled switch removed from UI)
-        aiTriggerApiKey: disguisePresetSettingsForm.elements['aiTriggerApiKey'].value.trim() || null,
-        aiTriggerBaseUrl: disguisePresetSettingsForm.elements['aiTriggerBaseUrl'].value.trim() || null,
-        aiTriggerModel: disguisePresetSettingsForm.elements['aiTriggerModel'].value.trim() || null,
-        aiTriggerModel: disguisePresetSettingsForm.elements['aiTriggerModel'].value.trim() || null,
-        aiTriggerKeyword: disguisePresetSettingsForm.elements['aiTriggerKeyword'].value.trim() || null,
-        aiTriggerKeywordFuzzyMatch: disguisePresetSettingsForm.elements['aiTriggerKeywordFuzzyMatch'].checked, // 新增
-        aiTriggerSystemPrompt: disguisePresetSettingsForm.elements['aiTriggerSystemPrompt'].value.trim() || null,
-        aiTriggerUserPrompt: disguisePresetSettingsForm.elements['aiTriggerUserPrompt'].value.trim() || null,
-        // History Limits
-        chatHistoryLimit: parseInt(disguisePresetSettingsForm.elements['chatHistoryLimit'].value, 10) || 10,
-        messageHistoryLimit: parseInt(disguisePresetSettingsForm.elements['messageHistoryLimit'].value, 10) || 10,
-        // OpenAI Main Model
+        // Model Settings
         openaiApiKey: disguisePresetSettingsForm.elements['openaiApiKey'].value.trim() || null,
         openaiBaseUrl: disguisePresetSettingsForm.elements['openaiBaseUrl'].value.trim() || null,
         openaiModel: disguisePresetSettingsForm.elements['openaiModel'].value.trim() || 'gpt-3.5-turbo',
-        // Web Search
+        openaiMaxTokens: disguisePresetSettingsForm.elements['openaiMaxTokens'].value ? parseInt(disguisePresetSettingsForm.elements['openaiMaxTokens'].value, 10) : null,
+        openaiTemperature: disguisePresetSettingsForm.elements['openaiTemperature'].value ? parseFloat(disguisePresetSettingsForm.elements['openaiTemperature'].value) : null,
+        openaiFrequencyPenalty: disguisePresetSettingsForm.elements['openaiFrequencyPenalty'].value ? parseFloat(disguisePresetSettingsForm.elements['openaiFrequencyPenalty'].value) : null,
+        openaiPresencePenalty: disguisePresetSettingsForm.elements['openaiPresencePenalty'].value ? parseFloat(disguisePresetSettingsForm.elements['openaiPresencePenalty'].value) : null,
+        openaiTopP: disguisePresetSettingsForm.elements['openaiTopP'].value ? parseFloat(disguisePresetSettingsForm.elements['openaiTopP'].value) : null,
+        // Web Search Settings
         allowWebSearch: disguisePresetSettingsForm.elements['allowWebSearch'].checked,
         webSearchApiKey: disguisePresetSettingsForm.elements['webSearchApiKey'].value.trim() || null,
         webSearchBaseUrl: disguisePresetSettingsForm.elements['webSearchBaseUrl'].value.trim() || null,
         webSearchModel: disguisePresetSettingsForm.elements['webSearchModel'].value.trim() || 'gemini-2.0-flash',
+        webSearchOpenaiMaxTokens: disguisePresetSettingsForm.elements['webSearchOpenaiMaxTokens'].value ? parseInt(disguisePresetSettingsForm.elements['webSearchOpenaiMaxTokens'].value, 10) : null,
+        webSearchOpenaiTemperature: disguisePresetSettingsForm.elements['webSearchOpenaiTemperature'].value ? parseFloat(disguisePresetSettingsForm.elements['webSearchOpenaiTemperature'].value) : null,
+        webSearchOpenaiFrequencyPenalty: disguisePresetSettingsForm.elements['webSearchOpenaiFrequencyPenalty'].value ? parseFloat(disguisePresetSettingsForm.elements['webSearchOpenaiFrequencyPenalty'].value) : null,
+        webSearchOpenaiPresencePenalty: disguisePresetSettingsForm.elements['webSearchOpenaiPresencePenalty'].value ? parseFloat(disguisePresetSettingsForm.elements['webSearchOpenaiPresencePenalty'].value) : null,
+        webSearchOpenaiTopP: disguisePresetSettingsForm.elements['webSearchOpenaiTopP'].value ? parseFloat(disguisePresetSettingsForm.elements['webSearchOpenaiTopP'].value) : null,
         webSearchSystemPrompt: disguisePresetSettingsForm.elements['webSearchSystemPrompt'].value.trim() || null,
+        // Trigger Settings - Normal
+        nameTriggered: disguisePresetSettingsForm.elements['nameTriggered'].checked,
+        nicknameTriggered: disguisePresetSettingsForm.elements['nicknameTriggered'].checked,
+        atTriggered: disguisePresetSettingsForm.elements['atTriggered'].checked,
+        replyTriggered: disguisePresetSettingsForm.elements['replyTriggered'].checked,
+        // Trigger Settings - AI
+        timedTriggerEnabled: disguisePresetSettingsForm.elements['timedTriggerEnabled'].checked,
+        timedTriggerInterval: disguisePresetSettingsForm.elements['timedTriggerInterval'].value ? parseInt(disguisePresetSettingsForm.elements['timedTriggerInterval'].value, 10) : null,
+        quantitativeTriggerEnabled: disguisePresetSettingsForm.elements['quantitativeTriggerEnabled'].checked,
+        quantitativeTriggerThreshold: disguisePresetSettingsForm.elements['quantitativeTriggerThreshold'].value ? parseInt(disguisePresetSettingsForm.elements['quantitativeTriggerThreshold'].value, 10) : null,
+        aiTriggerApiKey: disguisePresetSettingsForm.elements['aiTriggerApiKey'].value.trim() || null,
+        aiTriggerBaseUrl: disguisePresetSettingsForm.elements['aiTriggerBaseUrl'].value.trim() || null,
+        aiTriggerModel: disguisePresetSettingsForm.elements['aiTriggerModel'].value.trim() || 'gpt-3.5-turbo',
+        aiTriggerOpenaiMaxTokens: disguisePresetSettingsForm.elements['aiTriggerOpenaiMaxTokens'].value ? parseInt(disguisePresetSettingsForm.elements['aiTriggerOpenaiMaxTokens'].value, 10) : null,
+        aiTriggerOpenaiTemperature: disguisePresetSettingsForm.elements['aiTriggerOpenaiTemperature'].value ? parseFloat(disguisePresetSettingsForm.elements['aiTriggerOpenaiTemperature'].value) : null,
+        aiTriggerOpenaiFrequencyPenalty: disguisePresetSettingsForm.elements['aiTriggerOpenaiFrequencyPenalty'].value ? parseFloat(disguisePresetSettingsForm.elements['aiTriggerOpenaiFrequencyPenalty'].value) : null,
+        aiTriggerOpenaiPresencePenalty: disguisePresetSettingsForm.elements['aiTriggerOpenaiPresencePenalty'].value ? parseFloat(disguisePresetSettingsForm.elements['aiTriggerOpenaiPresencePenalty'].value) : null,
+        aiTriggerOpenaiTopP: disguisePresetSettingsForm.elements['aiTriggerOpenaiTopP'].value ? parseFloat(disguisePresetSettingsForm.elements['aiTriggerOpenaiTopP'].value) : null,
+        aiTriggerKeyword: disguisePresetSettingsForm.elements['aiTriggerKeyword'].value.trim() || null,
+        aiTriggerKeywordFuzzyMatch: disguisePresetSettingsForm.elements['aiTriggerKeywordFuzzyMatch'].checked,
+        aiTriggerSystemPrompt: disguisePresetSettingsForm.elements['aiTriggerSystemPrompt'].value.trim() || null,
+        aiTriggerUserPrompt: disguisePresetSettingsForm.elements['aiTriggerUserPrompt'].value.trim() || null,
     };
 
     const saveButton = disguisePresetSettingsForm.querySelector('button[type="submit"]');
@@ -111,47 +124,78 @@ export async function openDisguisePresetSettingsModal(presetId) {
         disguisePresetSettingsIdInput.value = preset.id;
         disguisePresetSettingsModalTitle.textContent = `伪装设置: ${domUtils.escapeHtml(preset.name)}`; // Updated text
 
-        // Populate fields in the disguise form
-        disguisePresetSettingsForm.elements['mode'].checked = preset.mode === 'ADVANCED';
+        // Populate fields in the disguise form - Basic Settings
         disguisePresetSettingsForm.elements['botName'].value = preset.botName || '';
         disguisePresetSettingsForm.elements['botNicknames'].value = preset.botNicknames || '';
+        disguisePresetSettingsForm.elements['chatHistoryLimit'].value = preset.chatHistoryLimit ?? 10;
+        disguisePresetSettingsForm.elements['messageHistoryLimit'].value = preset.messageHistoryLimit ?? 10;
+
+        // Populate fields - Feature Settings
+        disguisePresetSettingsForm.elements['mode'].checked = preset.mode === 'ADVANCED';
         disguisePresetSettingsForm.elements['advancedModeMessageDelay'].value = preset.advancedModeMessageDelay ?? 1000;
         disguisePresetSettingsForm.elements['botFuzzyMatchEnabled'].checked = preset.botFuzzyMatchEnabled ?? false;
         disguisePresetSettingsForm.elements['allowImageInput'].checked = preset.allowImageInput ?? false;
         disguisePresetSettingsForm.elements['allowVoiceOutput'].checked = preset.allowVoiceOutput ?? false;
-        // Standard Triggers
-        disguisePresetSettingsForm.elements['nameTriggered'].checked = preset.nameTriggered ?? false;
-        disguisePresetSettingsForm.elements['nicknameTriggered'].checked = preset.nicknameTriggered ?? false;
-        disguisePresetSettingsForm.elements['atTriggered'].checked = preset.atTriggered ?? false;
-        disguisePresetSettingsForm.elements['replyTriggered'].checked = preset.replyTriggered ?? false;
-        // Timed Trigger
-        disguisePresetSettingsForm.elements['timedTriggerEnabled'].checked = preset.timedTriggerEnabled ?? false;
-        disguisePresetSettingsForm.elements['timedTriggerInterval'].value = preset.timedTriggerInterval ?? '';
-        // Quantitative Trigger
-        disguisePresetSettingsForm.elements['quantitativeTriggerEnabled'].checked = preset.quantitativeTriggerEnabled ?? false;
-        disguisePresetSettingsForm.elements['quantitativeTriggerThreshold'].value = preset.quantitativeTriggerThreshold ?? '';
-        // AI Trigger (aiTriggerEnabled switch removed from UI)
-        disguisePresetSettingsForm.elements['aiTriggerApiKey'].value = preset.aiTriggerApiKey || '';
-        disguisePresetSettingsForm.elements['aiTriggerBaseUrl'].value = preset.aiTriggerBaseUrl || '';
-        disguisePresetSettingsForm.elements['aiTriggerModel'].value = preset.aiTriggerModel || 'gpt-3.5-turbo';
-        disguisePresetSettingsForm.elements['aiTriggerModel'].value = preset.aiTriggerModel || 'gpt-3.5-turbo';
-        disguisePresetSettingsForm.elements['aiTriggerKeyword'].value = preset.aiTriggerKeyword || '';
-        disguisePresetSettingsForm.elements['aiTriggerKeywordFuzzyMatch'].checked = preset.aiTriggerKeywordFuzzyMatch ?? false; // 新增
-        disguisePresetSettingsForm.elements['aiTriggerSystemPrompt'].value = preset.aiTriggerSystemPrompt || '';
-        disguisePresetSettingsForm.elements['aiTriggerUserPrompt'].value = preset.aiTriggerUserPrompt || '';
-        // History Limits
-        disguisePresetSettingsForm.elements['chatHistoryLimit'].value = preset.chatHistoryLimit ?? 10;
-        disguisePresetSettingsForm.elements['messageHistoryLimit'].value = preset.messageHistoryLimit ?? 10;
-        // OpenAI Main Model
+
+        // Populate fields - Model Settings
         disguisePresetSettingsForm.elements['openaiApiKey'].value = preset.openaiApiKey || '';
         disguisePresetSettingsForm.elements['openaiBaseUrl'].value = preset.openaiBaseUrl || '';
         disguisePresetSettingsForm.elements['openaiModel'].value = preset.openaiModel || 'gpt-3.5-turbo';
-        // Web Search
+        disguisePresetSettingsForm.elements['openaiMaxTokens'].value = preset.openaiMaxTokens ?? '';
+        disguisePresetSettingsForm.elements['openaiTemperature'].value = preset.openaiTemperature ?? 1.0;
+        disguisePresetSettingsForm.elements['openaiFrequencyPenalty'].value = preset.openaiFrequencyPenalty ?? 0.0;
+        disguisePresetSettingsForm.elements['openaiPresencePenalty'].value = preset.openaiPresencePenalty ?? 0.0;
+        disguisePresetSettingsForm.elements['openaiTopP'].value = preset.openaiTopP ?? 1.0;
+        // Update slider value displays for Model Settings
+        updateDisguiseSliderValue('disguise-settings-openai-temperature', 'disguise-settings-openai-temperature-value');
+        updateDisguiseSliderValue('disguise-settings-openai-frequency-penalty', 'disguise-settings-openai-frequency-penalty-value');
+        updateDisguiseSliderValue('disguise-settings-openai-presence-penalty', 'disguise-settings-openai-presence-penalty-value');
+        updateDisguiseSliderValue('disguise-settings-openai-top-p', 'disguise-settings-openai-top-p-value');
+
+        // Populate fields - Web Search Settings
         disguisePresetSettingsForm.elements['allowWebSearch'].checked = preset.allowWebSearch ?? false;
         disguisePresetSettingsForm.elements['webSearchApiKey'].value = preset.webSearchApiKey || '';
         disguisePresetSettingsForm.elements['webSearchBaseUrl'].value = preset.webSearchBaseUrl || '';
         disguisePresetSettingsForm.elements['webSearchModel'].value = preset.webSearchModel || 'gemini-2.0-flash';
+        disguisePresetSettingsForm.elements['webSearchOpenaiMaxTokens'].value = preset.webSearchOpenaiMaxTokens ?? '';
+        disguisePresetSettingsForm.elements['webSearchOpenaiTemperature'].value = preset.webSearchOpenaiTemperature ?? 1.0;
+        disguisePresetSettingsForm.elements['webSearchOpenaiFrequencyPenalty'].value = preset.webSearchOpenaiFrequencyPenalty ?? 0.0;
+        disguisePresetSettingsForm.elements['webSearchOpenaiPresencePenalty'].value = preset.webSearchOpenaiPresencePenalty ?? 0.0;
+        disguisePresetSettingsForm.elements['webSearchOpenaiTopP'].value = preset.webSearchOpenaiTopP ?? 1.0;
         disguisePresetSettingsForm.elements['webSearchSystemPrompt'].value = preset.webSearchSystemPrompt || '';
+        // Update slider value displays for Web Search Settings
+        updateDisguiseSliderValue('disguise-settings-web-search-openai-temperature', 'disguise-settings-web-search-openai-temperature-value');
+        updateDisguiseSliderValue('disguise-settings-web-search-openai-frequency-penalty', 'disguise-settings-web-search-openai-frequency-penalty-value');
+        updateDisguiseSliderValue('disguise-settings-web-search-openai-presence-penalty', 'disguise-settings-web-search-openai-presence-penalty-value');
+        updateDisguiseSliderValue('disguise-settings-web-search-openai-top-p', 'disguise-settings-web-search-openai-top-p-value');
+        
+        // Populate fields - Trigger Settings - Normal
+        disguisePresetSettingsForm.elements['nameTriggered'].checked = preset.nameTriggered ?? false; // Default to false for disguise
+        disguisePresetSettingsForm.elements['nicknameTriggered'].checked = preset.nicknameTriggered ?? false; // Default to false
+        disguisePresetSettingsForm.elements['atTriggered'].checked = preset.atTriggered ?? false; // Default to false
+        disguisePresetSettingsForm.elements['replyTriggered'].checked = preset.replyTriggered ?? false; // Default to false
+        // Populate fields - Trigger Settings - AI
+        disguisePresetSettingsForm.elements['timedTriggerEnabled'].checked = preset.timedTriggerEnabled ?? false;
+        disguisePresetSettingsForm.elements['timedTriggerInterval'].value = preset.timedTriggerInterval ?? '';
+        disguisePresetSettingsForm.elements['quantitativeTriggerEnabled'].checked = preset.quantitativeTriggerEnabled ?? false;
+        disguisePresetSettingsForm.elements['quantitativeTriggerThreshold'].value = preset.quantitativeTriggerThreshold ?? '';
+        disguisePresetSettingsForm.elements['aiTriggerApiKey'].value = preset.aiTriggerApiKey || '';
+        disguisePresetSettingsForm.elements['aiTriggerBaseUrl'].value = preset.aiTriggerBaseUrl || '';
+        disguisePresetSettingsForm.elements['aiTriggerModel'].value = preset.aiTriggerModel || 'gpt-3.5-turbo';
+        disguisePresetSettingsForm.elements['aiTriggerOpenaiMaxTokens'].value = preset.aiTriggerOpenaiMaxTokens ?? '';
+        disguisePresetSettingsForm.elements['aiTriggerOpenaiTemperature'].value = preset.aiTriggerOpenaiTemperature ?? 1.0;
+        disguisePresetSettingsForm.elements['aiTriggerOpenaiFrequencyPenalty'].value = preset.aiTriggerOpenaiFrequencyPenalty ?? 0.0;
+        disguisePresetSettingsForm.elements['aiTriggerOpenaiPresencePenalty'].value = preset.aiTriggerOpenaiPresencePenalty ?? 0.0;
+        disguisePresetSettingsForm.elements['aiTriggerOpenaiTopP'].value = preset.aiTriggerOpenaiTopP ?? 1.0;
+        disguisePresetSettingsForm.elements['aiTriggerKeyword'].value = preset.aiTriggerKeyword || '';
+        disguisePresetSettingsForm.elements['aiTriggerKeywordFuzzyMatch'].checked = preset.aiTriggerKeywordFuzzyMatch ?? false;
+        disguisePresetSettingsForm.elements['aiTriggerSystemPrompt'].value = preset.aiTriggerSystemPrompt || '';
+        disguisePresetSettingsForm.elements['aiTriggerUserPrompt'].value = preset.aiTriggerUserPrompt || '';
+        // Update slider value displays for AI Trigger Settings
+        updateDisguiseSliderValue('disguise-settings-ai-trigger-openai-temperature', 'disguise-settings-ai-trigger-openai-temperature-value');
+        updateDisguiseSliderValue('disguise-settings-ai-trigger-openai-frequency-penalty', 'disguise-settings-ai-trigger-openai-frequency-penalty-value');
+        updateDisguiseSliderValue('disguise-settings-ai-trigger-openai-presence-penalty', 'disguise-settings-ai-trigger-openai-presence-penalty-value');
+        updateDisguiseSliderValue('disguise-settings-ai-trigger-openai-top-p', 'disguise-settings-ai-trigger-openai-top-p-value');
 
         // 3. Open the disguise modal
         domUtils.openModal(disguisePresetSettingsModal);
@@ -159,6 +203,15 @@ export async function openDisguisePresetSettingsModal(presetId) {
     } catch (error) {
         console.error(`加载伪装 ${presetId} 设置失败:`, error); // Updated text
         uiNotifications.showToast('加载伪装设置失败', 3000, 'error'); // Updated text
+    }
+}
+
+// Helper function to update slider value display for disguise modal
+function updateDisguiseSliderValue(sliderId, valueDisplayId) {
+    const slider = document.getElementById(sliderId);
+    const valueDisplay = document.getElementById(valueDisplayId);
+    if (slider && valueDisplay) {
+        valueDisplay.textContent = parseFloat(slider.value).toFixed(2);
     }
 }
 
@@ -275,6 +328,32 @@ export function initDisguisePresetSettingsModal() {
     disguisePresetSettingsModal.addEventListener('click', (event) => {
         if (event.target.matches('[data-target="disguise-preset-settings-modal"][rel="prev"]')) {
             domUtils.closeModal(disguisePresetSettingsModal);
+        }
+    });
+
+    // Add event listeners for all new sliders in disguise modal
+    const sliderConfigs = [
+        // Model Settings Sliders
+        { sliderId: 'disguise-settings-openai-temperature', valueId: 'disguise-settings-openai-temperature-value' },
+        { sliderId: 'disguise-settings-openai-frequency-penalty', valueId: 'disguise-settings-openai-frequency-penalty-value' },
+        { sliderId: 'disguise-settings-openai-presence-penalty', valueId: 'disguise-settings-openai-presence-penalty-value' },
+        { sliderId: 'disguise-settings-openai-top-p', valueId: 'disguise-settings-openai-top-p-value' },
+        // Web Search Settings Sliders
+        { sliderId: 'disguise-settings-web-search-openai-temperature', valueId: 'disguise-settings-web-search-openai-temperature-value' },
+        { sliderId: 'disguise-settings-web-search-openai-frequency-penalty', valueId: 'disguise-settings-web-search-openai-frequency-penalty-value' },
+        { sliderId: 'disguise-settings-web-search-openai-presence-penalty', valueId: 'disguise-settings-web-search-openai-presence-penalty-value' },
+        { sliderId: 'disguise-settings-web-search-openai-top-p', valueId: 'disguise-settings-web-search-openai-top-p-value' },
+        // AI Trigger Settings Sliders
+        { sliderId: 'disguise-settings-ai-trigger-openai-temperature', valueId: 'disguise-settings-ai-trigger-openai-temperature-value' },
+        { sliderId: 'disguise-settings-ai-trigger-openai-frequency-penalty', valueId: 'disguise-settings-ai-trigger-openai-frequency-penalty-value' },
+        { sliderId: 'disguise-settings-ai-trigger-openai-presence-penalty', valueId: 'disguise-settings-ai-trigger-openai-presence-penalty-value' },
+        { sliderId: 'disguise-settings-ai-trigger-openai-top-p', valueId: 'disguise-settings-ai-trigger-openai-top-p-value' },
+    ];
+
+    sliderConfigs.forEach(config => {
+        const slider = document.getElementById(config.sliderId);
+        if (slider) {
+            slider.addEventListener('input', () => updateDisguiseSliderValue(config.sliderId, config.valueId));
         }
     });
 }

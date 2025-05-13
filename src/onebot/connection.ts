@@ -23,8 +23,8 @@ let currentFastifyInstance: FastifyInstance | null = null; // Store Fastify inst
 let currentConnectionConfig: OneBotConnectionConfig | null = null; // Store current config used
 let reconnectTimer: NodeJS.Timeout | null = null;
 const pendingActions = new Map<string, (response: OneBotActionResponse) => void>();
-let currentSelfId: string | null = null; // +++ Store self_id
-
+// let currentSelfId: string | null = null; // --- Removed self_id storage ---
+ 
 // Update log function to accept all relevant Pino levels
 function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: string, data?: any) {
     if (currentFastifyInstance?.log) { // Check if serverInstance and serverInstance.log exist
@@ -133,23 +133,8 @@ async function syncContactsOnConnect() {
     }
     logger.info('OneBot 连接成功，开始同步好友和群组列表...');
 
-    // +++ Get Login Info to store self_id +++
-    try {
-        logger.debug('正在获取机器人登录信息 (get_login_info)...');
-        const loginInfoResponse = await sendOneBotAction({ action: 'get_login_info', params: {} });
-        if (loginInfoResponse.status === 'ok' && loginInfoResponse.data && typeof loginInfoResponse.data.user_id === 'number') { // Or string depending on OneBot impl
-            currentSelfId = String(loginInfoResponse.data.user_id);
-            logger.info(`机器人自身 QQ 号 (self_id): ${currentSelfId}`);
-        } else {
-            logger.error({ response: loginInfoResponse }, '获取机器人登录信息失败或响应格式不正确');
-            currentSelfId = null; // Ensure it's reset if fetch fails
-        }
-    } catch (error) {
-        log('error', '获取机器人登录信息 (get_login_info) 时出错:', error);
-        currentSelfId = null;
-    }
-    // +++ End Get Login Info +++
-
+    // --- Removed get_login_info call to fetch self_id ---
+ 
     // Sync Friends
     try {
         logger.debug('正在获取好友列表...');
@@ -518,7 +503,7 @@ export function closeOneBotConnection() {
     log('info', '正在关闭 OneBot 连接...'); // Keep info for shutdown process
     cleanupConnection();
     currentConnectionConfig = null; // Clear stored config on explicit close
-    currentSelfId = null; // +++ Clear self_id on close +++
+    // currentSelfId = null; // --- Removed self_id clearing ---
     // Don't clear currentFastifyInstance here, might be needed if app restarts connection later
 }
 
@@ -527,18 +512,20 @@ export function getBotInstance(): WebSocket | null {
     return currentWs;
 }
 
-export interface BotConnectionInfo {
-    selfId: string | null;
-    mode: 'ws' | 'ws-reverse' | null;
-    url?: string;
-    port?: number;
-}
-
-export function getBotConfig(): BotConnectionInfo {
+// --- Removed BotConnectionInfo interface as selfId is no longer included ---
+// export interface BotConnectionInfo {
+//     selfId: string | null;
+//     mode: 'ws' | 'ws-reverse' | null;
+//     url?: string;
+//     port?: number;
+// }
+ 
+// --- Modified getBotConfig to return only connection details ---
+export function getBotConfig(): { mode: 'ws' | 'ws-reverse' | null; url?: string; port?: number } {
     return {
-        selfId: currentSelfId,
+        // selfId: currentSelfId, // --- Removed selfId ---
         mode: currentConnectionConfig?.mode || null,
         url: currentConnectionConfig?.url,
-        port: currentConnectionConfig?.port,
+        port: currentConnectionConfig?.port, // Corrected syntax and removed duplicate function
     };
 }

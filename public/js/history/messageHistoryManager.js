@@ -261,12 +261,12 @@ export async function initMessageHistoryManager() { // Make async
     // 尝试获取机器人ID
     try {
         const settings = await apiService.getSettings();
-        if (settings && settings.onebotSelfId) {
+        if (settings && settings.botId) { // Changed onebotSelfId to botId
             // Store the fetched ID in the module-level variable
-            currentBotId = settings.onebotSelfId;
+            currentBotId = settings.botId; // Changed onebotSelfId to botId
             console.log("Stored bot ID for message history:", currentBotId);
         } else {
-            console.warn("Message History: onebotSelfId not found in settings.");
+            console.warn("Message History: botId not found in settings."); // Changed onebotSelfId to botId
         }
     } catch(error) {
         console.error("Error fetching bot ID for message history:", error);

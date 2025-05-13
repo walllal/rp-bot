@@ -6,7 +6,8 @@ let currentAppSettings = {};
 
 // DOM Elements for App Settings
 let settingOnebotModeSelect, settingOnebotUrlInput, settingOnebotPortInput,
-    settingOnebotAccessTokenInput, settingOnebotReconnectIntervalInput,
+    settingOnebotAccessTokenInput, settingBotIdInput, // +++ Add botId input +++
+    settingOnebotReconnectIntervalInput,
     settingLogLevelSelect;
 let settingsSection; // Parent for save buttons
 // Also need access control switches here to set initial state
@@ -25,6 +26,7 @@ async function loadAppSettings() {
         if (settingOnebotUrlInput) settingOnebotUrlInput.value = currentAppSettings.onebotUrl ?? '';
         if (settingOnebotPortInput) settingOnebotPortInput.value = currentAppSettings.onebotPort ?? '';
         if (settingOnebotAccessTokenInput) settingOnebotAccessTokenInput.value = currentAppSettings.onebotAccessToken ?? '';
+        if (settingBotIdInput) settingBotIdInput.value = currentAppSettings.botId ?? ''; // +++ Load botId +++
         if (settingOnebotReconnectIntervalInput) settingOnebotReconnectIntervalInput.value = currentAppSettings.onebotReconnectInterval ?? '';
         // Populate log level
         if (settingLogLevelSelect) settingLogLevelSelect.value = currentAppSettings.logLevel ?? 'NORMAL';
@@ -235,6 +237,7 @@ export async function initAppSettings() {
     settingOnebotUrlInput = document.getElementById('setting-onebot-url');
     settingOnebotPortInput = document.getElementById('setting-onebot-port');
     settingOnebotAccessTokenInput = document.getElementById('setting-onebot-access-token');
+    settingBotIdInput = document.getElementById('setting-bot-id'); // +++ Get botId input element +++
     settingOnebotReconnectIntervalInput = document.getElementById('setting-onebot-reconnect-interval');
     settingLogLevelSelect = document.getElementById('setting-log-level');
     settingsSection = document.getElementById('settings-section'); // For event delegation

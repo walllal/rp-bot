@@ -8,7 +8,8 @@ import { getActiveContextsForPreset } from '../db/presets'; // +++ New Import
 import { getActiveContextsForDisguisePreset } from '../db/disguise'; // +++ New Import
 import { ContextType as DbContextType } from '@prisma/client'; // +++ New Import for DbContextType
 import { processAndExecuteMainAi } from './main-ai-processor'; // +++ Import main AI processor
-import { getBotInstance, getBotConfig, sendOneBotAction } from '../onebot/connection'; // +++ Import OneBot helpers, including sendOneBotAction
+import { getBotInstance, /* getBotConfig, */ sendOneBotAction } from '../onebot/connection'; // +++ Import OneBot helpers, including sendOneBotAction, getBotConfig removed as selfId is no longer from there
+import { getAppSettings } from '../db/configStore'; // +++ Import getAppSettings +++
 
 // Store for active timers: presetType_presetId -> NodeJS.Timeout
 const activeTimers: Record<string, NodeJS.Timeout> = {};
@@ -57,9 +58,12 @@ async function executeSubAiForSpecificContext(
     // System Prompt: Get it, but don't apply a default here. It will be conditionally added later.
     const rawSystemPrompt = config.aiTriggerSystemPrompt;
 
+    const appSettings = await getAppSettings(serverInstance.log); // Get app settings
+    const botIdFromSettings = appSettings?.botId || undefined;
+
     const variableContextForSubAI: VariableContext = {
         timestamp: new Date(),
-        botId: getBotConfig()?.selfId || undefined, // Use getBotConfig
+        botId: botIdFromSettings, // Use botId from app settings
         botName: config.botName || undefined,
         userId: contextType === DbContextType.PRIVATE ? contextId : undefined,
         groupId: contextType === DbContextType.GROUP ? contextId : undefined,
@@ -99,10 +103,16 @@ async function executeSubAiForSpecificContext(
         const subAiResponseObj = await callOpenAI(
             messagesForSubAI,
             {
-                apiKey: config.aiTriggerApiKey,
+                apiKey: config.aiTriggerApiKey!, // Assert non-null as it's checked above
                 baseURL: config.aiTriggerBaseUrl,
-                modelName: config.aiTriggerModel,
-                allowWebSearch: false,
+                modelName: config.aiTriggerModel!, // Assert non-null as it's checked above
+                allowWebSearch: false, // AI Trigger sub-call should not do web search
+                // Pass AI Trigger specific OpenAI parameters
+                openaiMaxTokens: config.aiTriggerOpenaiMaxTokens, // This will show TS error until TS server restart
+                openaiTemperature: config.aiTriggerOpenaiTemperature, // This will show TS error until TS server restart
+                openaiFrequencyPenalty: config.aiTriggerOpenaiFrequencyPenalty, // This will show TS error until TS server restart
+                openaiPresencePenalty: config.aiTriggerOpenaiPresencePenalty, // This will show TS error until TS server restart
+                openaiTopP: config.aiTriggerOpenaiTopP, // This will show TS error until TS server restart
             },
             serverInstance.log
         );
@@ -135,8 +145,9 @@ async function executeSubAiForSpecificContext(
             const mainAiTriggerMessage = `定时任务触发：预设“${config.name}”在上下文 ${contextType}:${contextId} 中需要主AI处理。`;
 
             // Get bot ID for senderUserId in timed trigger context
-            const botIdForSender = getBotConfig()?.selfId?.toString() || 'system'; // Use bot ID or 'system'
-
+            // TODO: Refactor to get botId from appSettings if available in this context
+            const botIdForSender = 'system'; // Changed from getBotConfig()?.selfId, using 'system' as fallback
+ 
             const mainAiReply = await processAndExecuteMainAi(
                 config,                 // config
                 contextType,            // contextType

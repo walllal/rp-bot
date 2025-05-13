@@ -38,16 +38,26 @@ model Preset {
   openaiApiKey             String?                 // OpenAI API Key (可选)
   openaiBaseUrl            String?                 // OpenAI Base URL (可选, 用于代理)
   openaiModel              String   @default("gpt-3.5-turbo") // OpenAI 模型名称
+  openaiMaxTokens          Int?     @default(1024)  // 新增：最大回复长度
+  openaiTemperature        Float?   @default(1.0)   // 新增：温度 (0.0-2.0)
+  openaiFrequencyPenalty   Float?   @default(0.0)   // 新增：频率惩罚 (-2.0-2.0)
+  openaiPresencePenalty    Float?   @default(0.0)   // 新增：存在惩罚 (-2.0-2.0)
+  openaiTopP               Float?   @default(1.0)   // 新增：Top P (0.0-1.0)
   // --- 结束预设专属应用及模型设置 ---
-
+ 
   // --- 预设专属联网设置 ---
   allowWebSearch           Boolean  @default(false) // 是否允许联网搜索
   webSearchApiKey          String?                 // 联网搜索 API Key (可选，独立于模型设置)
   webSearchBaseUrl         String?                 // 联网搜索 Base URL (可选，独立于模型设置)
   webSearchModel           String   @default("gemini-2.0-flash") // 联网搜索模型名称
+  webSearchOpenaiMaxTokens Int?     @default(1024)  // 新增：联网搜索最大回复长度
+  webSearchOpenaiTemperature Float? @default(1.0)   // 新增：联网搜索温度
+  webSearchOpenaiFrequencyPenalty Float? @default(0.0) // 新增：联网搜索频率惩罚
+  webSearchOpenaiPresencePenalty Float? @default(0.0)  // 新增：联网搜索存在惩罚
+  webSearchOpenaiTopP      Float?   @default(1.0)   // 新增：联网搜索Top P
   webSearchSystemPrompt    String?                 // 新增：预设级联网搜索系统提示词 (可选)
   // --- 结束预设专属联网设置 ---
-
+ 
   // --- 新增：高级触发设置 ---
   timedTriggerEnabled           Boolean  @default(false) // 是否启用定时触发
   timedTriggerInterval          Int?                    // 定时触发间隔 (秒)
@@ -58,6 +68,11 @@ model Preset {
   aiTriggerApiKey               String?                 // AI触发API密钥
   aiTriggerBaseUrl              String?                 // AI触发基础URL
   aiTriggerModel                String?  @default("gpt-3.5-turbo") // AI触发模型名称
+  aiTriggerOpenaiMaxTokens      Int?     @default(1024)  // 新增：AI触发最大回复长度
+  aiTriggerOpenaiTemperature    Float?   @default(1.0)   // 新增：AI触发温度
+  aiTriggerOpenaiFrequencyPenalty Float? @default(0.0)   // 新增：AI触发频率惩罚
+  aiTriggerOpenaiPresencePenalty Float? @default(0.0)  // 新增：AI触发存在惩罚
+  aiTriggerOpenaiTopP           Float?   @default(1.0)   // 新增：AI触发Top P
   aiTriggerKeyword              String?                 // AI触发关键词
   aiTriggerKeywordFuzzyMatch    Boolean  @default(false) // 新增：AI触发关键词是否启用模糊匹配
   aiTriggerSystemPrompt         String?                 // AI触发系统级提示词
@@ -128,6 +143,7 @@ model AppSettings {
   onebotPort                 Int?    @default(6701) // 反向 WS 端口
   onebotAccessToken          String? // 可选的 Access Token
   onebotReconnectInterval    Int     @default(5000) // 正向 WS 重连间隔 (ms)
+botId                      String? // 新增：机器人自身 QQ 号 (可选)
 
   // 日志设置
   logLevel                   String  @default("NORMAL") // "NORMAL", "DEBUG_AI", "DEBUG_ALL"
@@ -238,16 +254,26 @@ model DisguisePreset {
   openaiApiKey             String?
   openaiBaseUrl            String?
   openaiModel              String   @default("gpt-3.5-turbo")
+  openaiMaxTokens          Int?     @default(1024)  // 新增：最大回复长度
+  openaiTemperature        Float?   @default(1.0)   // 新增：温度 (0.0-2.0)
+  openaiFrequencyPenalty   Float?   @default(0.0)   // 新增：频率惩罚 (-2.0-2.0)
+  openaiPresencePenalty    Float?   @default(0.0)   // 新增：存在惩罚 (-2.0-2.0)
+  openaiTopP               Float?   @default(1.0)   // 新增：Top P (0.0-1.0)
   // --- 结束伪装预设专属应用及模型设置 ---
-
+ 
   // --- 伪装预设专属联网设置 ---
   allowWebSearch           Boolean  @default(false) // 是否允许联网搜索
   webSearchApiKey          String?                 // 联网搜索 API Key (可选，独立于模型设置)
   webSearchBaseUrl         String?                 // 联网搜索 Base URL (可选，独立于模型设置)
   webSearchModel           String   @default("gemini-2.0-flash") // 联网搜索模型名称
+  webSearchOpenaiMaxTokens Int?     @default(1024)  // 新增：联网搜索最大回复长度
+  webSearchOpenaiTemperature Float? @default(1.0)   // 新增：联网搜索温度
+  webSearchOpenaiFrequencyPenalty Float? @default(0.0) // 新增：联网搜索频率惩罚
+  webSearchOpenaiPresencePenalty Float? @default(0.0)  // 新增：联网搜索存在惩罚
+  webSearchOpenaiTopP      Float?   @default(1.0)   // 新增：联网搜索Top P
   webSearchSystemPrompt    String?                 // 新增：伪装级联网搜索系统提示词 (可选)
   // --- 结束伪装预设专属联网设置 ---
-
+ 
   // --- 新增：高级触发设置 (同 Preset) ---
   timedTriggerEnabled           Boolean  @default(false)
   timedTriggerInterval          Int?
@@ -258,6 +284,11 @@ model DisguisePreset {
   aiTriggerApiKey               String?
   aiTriggerBaseUrl              String?
   aiTriggerModel                String?  @default("gpt-3.5-turbo")
+  aiTriggerOpenaiMaxTokens      Int?     @default(1024)  // 新增：AI触发最大回复长度
+  aiTriggerOpenaiTemperature    Float?   @default(1.0)   // 新增：AI触发温度
+  aiTriggerOpenaiFrequencyPenalty Float? @default(0.0)   // 新增：AI触发频率惩罚
+  aiTriggerOpenaiPresencePenalty Float? @default(0.0)  // 新增：AI触发存在惩罚
+  aiTriggerOpenaiTopP           Float?   @default(1.0)   // 新增：AI触发Top P
   aiTriggerKeyword              String?
   aiTriggerKeywordFuzzyMatch    Boolean  @default(false) // 新增：AI触发关键词是否启用模糊匹配
   aiTriggerSystemPrompt         String?

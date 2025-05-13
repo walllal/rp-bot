@@ -49,7 +49,7 @@ function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: stri
 async function parseOneBotMessage(
     message: string | OneBotMessageSegment[],
     allowImageInput: boolean,
-    selfId?: string
+    botId?: string // Changed selfId to botId
 ): Promise<{ contentItems: UserMessageContentItem[], displayMessage: string, mentionedSelf: boolean, repliedMessageId: string | null }> {
     const contentItems: UserMessageContentItem[] = [];
     let displayMessageParts: string[] = [];
@@ -136,8 +136,8 @@ async function parseOneBotMessage(
                 if (lastContent?.type === 'text') { lastContent.text += ' ' + faceText; }
                 else { contentItems.push({ type: 'text', text: faceText }); }
             } else if (segment.type === 'at') {
-                const atText = (selfId && segment.data.qq === selfId) ? '[@me]' : `[@${segment.data.qq || '未知'}]`;
-                if (selfId && segment.data.qq === selfId) {
+                const atText = (botId && segment.data.qq === botId) ? '[@me]' : `[@${segment.data.qq || '未知'}]`; // Changed selfId to botId
+                if (botId && segment.data.qq === botId) { // Changed selfId to botId
                     mentionedSelf = true;
                 }
                 displayMessageParts.push(atText);
@@ -209,7 +209,7 @@ async function handleConfigurationProcessing(
     repliedMessageIdParam?: string, // +++ Add repliedMessageId as a parameter +++
     // Optional parameters last
     userName?: string, // Display name (card or nickname) - might be redundant now
-    selfId?: string
+    botId?: string // Changed selfId to botId
 ) {
     log('debug', `开始处理 ${configSource} 配置: ${config.name} (ID: ${config.id})`);
 
@@ -281,7 +281,7 @@ async function handleConfigurationProcessing(
         // This context should reflect the current user message being processed.
         const contextForSubAiPromptProcessing: VariableContext = {
             timestamp: variableContext.timestamp, // from original event
-            botId: selfId,
+            botId: botId, // Changed selfId to botId
             userId: userId,
             userNickname: variableContext.userNickname,
             userCard: variableContext.userCard,
@@ -389,7 +389,7 @@ async function handleConfigurationProcessing(
 
                 const contextForSubAi: VariableContext = {
                     timestamp: variableContext.timestamp,
-                    botId: selfId,
+                    botId: botId, // Changed selfId to botId
                     userId: userId,
                     userNickname: variableContext.userNickname,
                     userCard: variableContext.userCard,
@@ -480,14 +480,14 @@ async function handleConfigurationProcessing(
             const processedUserTextForHistory = transformUserTextForHistory(
                 originalUserMessageText,
                 config.mode,
-                selfId
+                botId // Changed selfId to botId
             );
             const processedUserContentForHistory = transformUserMessageContentForHistory(
                 originalUserMessageContent,
                 config.mode,
-                selfId
+                botId // Changed selfId to botId
             );
-
+ 
             if (processedUserTextForHistory.trim()) {
                 await addHistoryItem(
                     contextType,
@@ -598,14 +598,14 @@ async function handleConfigurationProcessing(
                     
                     // 在这里保存完整的高级模式消息到ChatHistory，使用系统生成的ID
                     const chatHistoryMessageId = `bot_advanced_chat_${configSource}_${Date.now()}`;
-                    if (serverInstance?.log && selfId) {
+                    if (serverInstance?.log && botId) { // Changed selfId to botId
                         // 只记录<message>标签内的内容
                         // 如果没有找到<message>标签内容，则不添加到对话历史
                         if (allMessageContents.length > 0) {
                             await addHistoryItem(
-                                contextType, 
+                                contextType,
                                 contextId,
-                                selfId || 'assistant',
+                                botId || 'assistant', // Changed selfId to botId
                                 DbRole.ASSISTANT,
                                 historyContent, // 使用合并后的完整内容
                                 new Date(),
@@ -680,14 +680,14 @@ async function handleConfigurationProcessing(
                         }
                         
                         // 在所有操作完成后，将合并的消息添加到消息历史中
-                        if (allTextSegments.length > 0 && serverInstance?.log && selfId) {
+                        if (allTextSegments.length > 0 && serverInstance?.log && botId) { // Changed selfId to botId
                             // 生成唯一消息ID
                             const unifiedMessageId = `bot_advanced_combined_${configSource}_${Date.now()}`;
                             
                             await logMessage({
                                 contextType,
                                 contextId,
-                                userId: selfId || 'assistant',
+                                userId: botId || 'assistant', // Changed selfId to botId
                                 userName: config.botName || '',
                                 botName: config.botName || '',
                                 messageId: unifiedMessageId,
@@ -715,10 +715,10 @@ async function handleConfigurationProcessing(
                                     log('info', `[标准-${configSource}] 已通过 QQ Voice 插件触发群聊语音发送 [群:${contextId}]`);
                                     standardVoiceSent = true;
                                     // 记录标准模式语音到消息历史 (使用内部ID，因为插件可能不返回可回复ID)
-                                    if (serverInstance?.log && selfId) {
+                                    if (serverInstance?.log && botId) { // Changed selfId to botId
                                         const voiceMsgId = `bot_voice_${configSource}_std_${Date.now()}`;
                                         await logMessage({
-                                            contextType, contextId, userId: selfId,
+                                            contextType, contextId, userId: botId, // Changed selfId to botId
                                             userName: config.botName || '', botName: config.botName || '',
                                             messageId: voiceMsgId,
                                             rawMessage: [{ type: 'text', text: `[语音消息] ${aiResponseContent}` }] as any,
@@ -749,18 +749,18 @@ async function handleConfigurationProcessing(
                         log('info', `[标准-${configSource}] 发送${event.message_type === 'private' ? '私聊' : '群聊'}消息 [${event.message_type === 'private' ? `人:${userId}` : `群:${contextId}`}]: ${aiResponseContent}`);
                         
                         actualStandardMessageId = sendResponse.data?.message_id ? String(sendResponse.data.message_id) : null;
-
-                        if (actualStandardMessageId && serverInstance?.log && selfId) {
+ 
+                        if (actualStandardMessageId && serverInstance?.log && botId) { // Changed selfId to botId
                             await logMessage({
-                                contextType, contextId, userId: selfId,
+                                contextType, contextId, userId: botId, // Changed selfId to botId
                                 userName: config.botName || '', botName: config.botName || '',
                                 messageId: actualStandardMessageId, // Use actual message_id
                                 rawMessage: [{ type: 'text', text: aiResponseContent }] as any,
                             }, new Date(), serverInstance.log);
                             log('trace', `[标准-${configSource}] ${event.message_type === 'private' ? '私聊' : '群聊'}文本消息已存入消息历史 (真实ID: ${actualStandardMessageId})`);
                             standardMessageLoggedToHistory = true; // Mark as logged
-                        } else if (serverInstance?.log && selfId) {
-                            log('warn', `[标准-${configSource}] 发送${event.message_type === 'private' ? '私聊' : '群聊'}文本消息成功但未能获取真实 message_id，或 logger/selfId 不可用。`);
+                        } else if (serverInstance?.log && botId) { // Changed selfId to botId
+                            log('warn', `[标准-${configSource}] 发送${event.message_type === 'private' ? '私聊' : '群聊'}文本消息成功但未能获取真实 message_id，或 logger/botId 不可用。`);
                             // Fallback to internal ID for ChatHistory if needed, but MessageHistory won't be accurate for replies
                             actualStandardMessageId = `bot_text_${configSource}_fallback_${Date.now()}`;
                         }
@@ -769,9 +769,9 @@ async function handleConfigurationProcessing(
 
                 // --- Record AI response to ChatHistory (only for standard mode, advanced mode records its own history) ---
                 // MessageHistory is now handled immediately after sending the message with the actual ID.
-                if (aiResponseContent && serverInstance?.log && selfId && config.mode !== 'ADVANCED') {
+                if (aiResponseContent && serverInstance?.log && botId && config.mode !== 'ADVANCED') { // Changed selfId to botId
                     log('trace', `准备保存 AI 对话历史记录 (${configSource}: ${config.name})...`);
-                    const effectiveSelfId = selfId || 'assistant';
+                    const effectiveBotId = botId || 'assistant'; // Changed selfId to botId
                     // For ChatHistory, we can use a consistent internal ID format,
                     // or the actualStandardMessageId if available from standard mode text/voice.
                     // Advanced mode already logged its messages to MessageHistory with actual IDs.
@@ -779,7 +779,7 @@ async function handleConfigurationProcessing(
 
                     const assistantReplyTimestamp = new Date();
                     await addHistoryItem(
-                        contextType, contextId, effectiveSelfId, DbRole.ASSISTANT,
+                        contextType, contextId, effectiveBotId, DbRole.ASSISTANT, // Changed effectiveSelfId to effectiveBotId
                         aiResponseContent, assistantReplyTimestamp, chatHistoryMessageId,
                         config.botName || '', config.botName || ''
                     );
@@ -810,8 +810,8 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
     if (event.self_id && event.user_id === event.self_id) {
         return; // Ignore messages sent by the bot itself
     }
-
-    const selfId = event.self_id?.toString();
+ 
+    // const selfId = event.self_id?.toString(); // --- selfId is already removed from event ---
     const userId = event.user_id.toString();
     const timestamp = new Date(event.time * 1000);
 
@@ -861,7 +861,8 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
         log('error', '无法获取应用设置，跳过消息处理');
         return;
     }
-
+    const botId = appSettings.botId; // botId is already being fetched from settings
+ 
     // --- Parse User Message ---
     // Need to parse message early to get mentionedSelf status and content for logging
     // We pass a temporary allowImageInput=true, the actual check happens within handleConfigurationProcessing
@@ -869,7 +870,7 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
     const parseResult = await parseOneBotMessage(
         event.message,
         true, // Temporarily allow image for parsing, actual logic uses config.allowImageInput
-        selfId
+        botId ?? undefined // Changed selfId to botId, ensure undefined if null
     );
     let userMessageContent = parseResult.contentItems; // Now mutable
     let displayMessage = parseResult.displayMessage;   // Now mutable
@@ -921,19 +922,19 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
 
 // --- 检查消息是否是回复机器人的消息 (isReplyToBot) ---
     // repliedMessageId 是由 parseOneBotMessage 从消息中提取的，如果消息是回复，它就是被回复消息的ID。
-    // selfId 是机器人自身的ID。
+    // botId 是机器人自身的ID (从设置获取)。
     let isReplyToBot = false; // Default to false
-    if (repliedMessageId && selfId && serverInstance?.log) {
+    if (repliedMessageId && botId && serverInstance?.log) { // botId is already used here
         // 只有当消息确实是一个回复 (repliedMessageId 有值) 并且我们能获取机器人自身ID和日志服务时，才进行检查
-        log('debug', `当前消息是一个回复，被回复的消息 ID (来自 parseOneBotMessage): ${repliedMessageId}。检查是否回复了机器人。`);
+        log('debug', `当前消息是一个回复，被回复的消息 ID (来自 parseOneBotMessage): ${repliedMessageId}。检查是否回复了机器人 (Bot ID: ${botId})。`);
         const repliedMessageDataFromDb = await getMessageByMessageId(repliedMessageId, serverInstance.log);
         
         if (repliedMessageDataFromDb) {
-            if (repliedMessageDataFromDb.userId === selfId) {
+            if (repliedMessageDataFromDb.userId === botId) { // botId is already used here
                 isReplyToBot = true;
-                log('debug', `确认回复了机器人 (被回复消息发送者ID: ${repliedMessageDataFromDb.userId} === selfId: ${selfId})。`);
+                log('debug', `确认回复了机器人 (被回复消息发送者ID: ${repliedMessageDataFromDb.userId} === botId: ${botId})。`);
             } else {
-                log('debug', `回复了其他用户 (被回复消息发送者ID: ${repliedMessageDataFromDb.userId} !== selfId: ${selfId})，不是机器人。`);
+                log('debug', `回复了其他用户 (被回复消息发送者ID: ${repliedMessageDataFromDb.userId} !== botId: ${botId})，不是机器人。`);
             }
         } else {
             // 虽然是回复事件，但在消息历史中未找到被回复的消息。
@@ -978,9 +979,9 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
             
             // 根据确定的模式处理消息内容
             const processedMessageContent = transformUserMessageContentForHistory(
-                userMessageContent, 
+                userMessageContent,
                 configMode, // 使用确定的模式而不是固定的'STANDARD'
-                selfId
+                botId ?? undefined // Changed selfId to botId, ensure undefined if null
             );
             
             await logMessage({
@@ -1047,7 +1048,7 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
     // Bot name is determined per config, so set to undefined initially
     const variableContext: VariableContext = {
         timestamp,
-        botId: selfId,
+        botId: botId ?? undefined, // Changed selfId to botId, ensure undefined if null
         userId,
         userNickname: userNicknameForContext,
         userCard: userCardForContext,
@@ -1084,7 +1085,7 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
                 repliedMessageId === null ? undefined : repliedMessageId, // param 19: Convert null to undefined
                 // Optional params at the end
                 userName, // param 20: Display name (card or nickname)
-                selfId // param 21
+                botId ?? undefined // param 21: Changed selfId to botId, ensure undefined if null
             );
         } else {
             log('info', `未找到适用伪装 for ${contextType}:${contextId}`);
@@ -1122,7 +1123,7 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
                 repliedMessageId === null ? undefined : repliedMessageId, // param 19: Convert null to undefined
                 // Optional params at the end
                 userName, // param 20: Display name (card or nickname)
-                selfId // param 21
+                botId ?? undefined // param 21: Changed selfId to botId, ensure undefined if null
             );
         } else {
             log('info', `未找到适用预设 for ${contextType}:${contextId}`);

@@ -3,9 +3,10 @@ import { FastifyInstance } from 'fastify';
 import { OpenAIMessage, VariableContext, PresetContent, PresetItemSchema } from './types';
 import { substituteVariables } from './preset-processor';
 import { callOpenAI } from './openai-client';
-import { getBotConfig } from '../onebot/connection'; // 导入真实的 getBotConfig
+// import { getBotConfig } from '../onebot/connection'; // --- Removed: getBotConfig no longer returns selfId ---
 import { OpenAIRole } from './types'; // +++ Import OpenAIRole
 import { processAtMentionsInOpenAIMessages } from './message-utils'; // 导入处理 @ 的函数
+import { getAppSettings } from '../db/configStore'; // +++ Import getAppSettings +++
 
 // Helper for logging within this module, similar to trigger-scheduler
 function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: string, serverInstance?: FastifyInstance, data?: any) {
@@ -38,13 +39,14 @@ export async function processAndExecuteMainAi(
     replyToMessageId?: string,
     replyToContent?: string // Added reply content
 ): Promise<string | null> {
-    const botConnectionConfig = getBotConfig(); // To get self_id
-    const selfId = botConnectionConfig?.selfId;
-
+    // Get app settings to retrieve botId
+    const appSettings = await getAppSettings(serverInstance.log); // Pass serverInstance.log for logging
+    const botId = appSettings?.botId || undefined; // Get botId from settings
+ 
     // Construct the complete VariableContext using all available info
     const variableContext: VariableContext = {
         timestamp: new Date(),
-        botId: selfId ? String(selfId) : undefined,
+        botId: botId, // Use botId from app settings
         botName: config.botName || undefined,
         userId: senderUserId, // Always use the sender's ID
         userNickname: senderNickname,
@@ -157,21 +159,42 @@ export async function processAndExecuteMainAi(
     const processedMessages = processAtMentionsInOpenAIMessages(
         finalMessages,
         config.mode, // 使用配置中的模式（STANDARD 或 ADVANCED）
-        variableContext.botId // 传入机器人 ID
+        botId // 传入从设置获取的机器人 ID
     );
     
     log('debug', `Calling Main AI for ${config.name} in context ${contextType}:${contextId}. Model: ${config.openaiModel}`, serverInstance, { messages: processedMessages });
 
     try {
+        // Construct the config for callOpenAI, including advanced parameters
+        const callConfig = {
+            apiKey: config.openaiApiKey!,
+            baseURL: config.openaiBaseUrl,
+            modelName: config.openaiModel!,
+            // Main OpenAI call parameters from the preset/disguise
+            openaiMaxTokens: config.openaiMaxTokens,
+            openaiTemperature: config.openaiTemperature,
+            openaiFrequencyPenalty: config.openaiFrequencyPenalty,
+            openaiPresencePenalty: config.openaiPresencePenalty,
+            openaiTopP: config.openaiTopP,
+            // Web search settings (passed to callOpenAI, which decides whether to use them)
+            allowWebSearch: config.allowWebSearch ?? false,
+            webSearchApiKey: config.webSearchApiKey,
+            webSearchBaseUrl: config.webSearchBaseUrl,
+            webSearchModel: config.webSearchModel,
+            webSearchSystemPrompt: config.webSearchSystemPrompt,
+            rawUserTextForSearch: userInputText, // Pass the original user input for potential web search
+            // Web search specific OpenAI parameters (also passed to callOpenAI)
+            webSearchOpenaiMaxTokens: config.webSearchOpenaiMaxTokens,
+            webSearchOpenaiTemperature: config.webSearchOpenaiTemperature,
+            webSearchOpenaiFrequencyPenalty: config.webSearchOpenaiFrequencyPenalty,
+            webSearchOpenaiPresencePenalty: config.webSearchOpenaiPresencePenalty,
+            webSearchOpenaiTopP: config.webSearchOpenaiTopP,
+            // AI Trigger parameters are not relevant for the main call
+        };
+
         const mainAiResponseObj = await callOpenAI(
             processedMessages, // 使用处理过 @ 的消息
-            { 
-                apiKey: config.openaiApiKey!, 
-                baseURL: config.openaiBaseUrl, 
-                modelName: config.openaiModel!, 
-                allowWebSearch: config.allowWebSearch ?? false,
-                // TODO: Add other OpenAI parameters from config if they exist (e.g., temperature, max_tokens)
-            },
+            callConfig,
             serverInstance.log
         );
         

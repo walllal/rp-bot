@@ -57,11 +57,21 @@ export interface CreatePresetData {
     openaiApiKey?: string | null;
     openaiBaseUrl?: string | null;
     openaiModel?: string;
+    openaiMaxTokens?: number | null;
+    openaiTemperature?: number | null;
+    openaiFrequencyPenalty?: number | null;
+    openaiPresencePenalty?: number | null;
+    openaiTopP?: number | null;
     // 联网设置
     allowWebSearch?: boolean;
     webSearchApiKey?: string | null;
     webSearchBaseUrl?: string | null;
     webSearchModel?: string;
+    webSearchOpenaiMaxTokens?: number | null;
+    webSearchOpenaiTemperature?: number | null;
+    webSearchOpenaiFrequencyPenalty?: number | null;
+    webSearchOpenaiPresencePenalty?: number | null;
+    webSearchOpenaiTopP?: number | null;
     webSearchSystemPrompt?: string | null; // 新增
     // 新增高级触发设置
     timedTriggerEnabled?: boolean;
@@ -72,6 +82,11 @@ export interface CreatePresetData {
     aiTriggerApiKey?: string | null;
     aiTriggerBaseUrl?: string | null;
     aiTriggerModel?: string | null;
+    aiTriggerOpenaiMaxTokens?: number | null;
+    aiTriggerOpenaiTemperature?: number | null;
+    aiTriggerOpenaiFrequencyPenalty?: number | null;
+    aiTriggerOpenaiPresencePenalty?: number | null;
+    aiTriggerOpenaiTopP?: number | null;
     aiTriggerKeyword?: string | null;
     aiTriggerKeywordFuzzyMatch?: boolean; // 新增
     aiTriggerSystemPrompt?: string | null;
@@ -112,11 +127,21 @@ export async function createPreset(data: CreatePresetData): Promise<Preset> {
             openaiApiKey: data.openaiApiKey,
             openaiBaseUrl: data.openaiBaseUrl,
             openaiModel: data.openaiModel,
+            openaiMaxTokens: data.openaiMaxTokens,
+            openaiTemperature: data.openaiTemperature,
+            openaiFrequencyPenalty: data.openaiFrequencyPenalty,
+            openaiPresencePenalty: data.openaiPresencePenalty,
+            openaiTopP: data.openaiTopP,
             // 联网设置
             allowWebSearch: data.allowWebSearch,
             webSearchApiKey: data.webSearchApiKey,
             webSearchBaseUrl: data.webSearchBaseUrl,
             webSearchModel: data.webSearchModel,
+            webSearchOpenaiMaxTokens: data.webSearchOpenaiMaxTokens,
+            webSearchOpenaiTemperature: data.webSearchOpenaiTemperature,
+            webSearchOpenaiFrequencyPenalty: data.webSearchOpenaiFrequencyPenalty,
+            webSearchOpenaiPresencePenalty: data.webSearchOpenaiPresencePenalty,
+            webSearchOpenaiTopP: data.webSearchOpenaiTopP,
             webSearchSystemPrompt: data.webSearchSystemPrompt,
             // 新增高级触发设置
             timedTriggerEnabled: data.timedTriggerEnabled,
@@ -127,6 +152,11 @@ export async function createPreset(data: CreatePresetData): Promise<Preset> {
             aiTriggerApiKey: data.aiTriggerApiKey,
             aiTriggerBaseUrl: data.aiTriggerBaseUrl,
             aiTriggerModel: data.aiTriggerModel,
+            aiTriggerOpenaiMaxTokens: data.aiTriggerOpenaiMaxTokens,
+            aiTriggerOpenaiTemperature: data.aiTriggerOpenaiTemperature,
+            aiTriggerOpenaiFrequencyPenalty: data.aiTriggerOpenaiFrequencyPenalty,
+            aiTriggerOpenaiPresencePenalty: data.aiTriggerOpenaiPresencePenalty,
+            aiTriggerOpenaiTopP: data.aiTriggerOpenaiTopP,
             aiTriggerKeyword: data.aiTriggerKeyword,
             aiTriggerKeywordFuzzyMatch: data.aiTriggerKeywordFuzzyMatch, // 新增
             aiTriggerSystemPrompt: data.aiTriggerSystemPrompt,
@@ -157,11 +187,21 @@ export interface UpdatePresetData {
     openaiApiKey?: string | null;
     openaiBaseUrl?: string | null;
     openaiModel?: string;
+    openaiMaxTokens?: number | null;
+    openaiTemperature?: number | null;
+    openaiFrequencyPenalty?: number | null;
+    openaiPresencePenalty?: number | null;
+    openaiTopP?: number | null;
     // 联网设置
     allowWebSearch?: boolean;
     webSearchApiKey?: string | null;
     webSearchBaseUrl?: string | null;
     webSearchModel?: string;
+    webSearchOpenaiMaxTokens?: number | null;
+    webSearchOpenaiTemperature?: number | null;
+    webSearchOpenaiFrequencyPenalty?: number | null;
+    webSearchOpenaiPresencePenalty?: number | null;
+    webSearchOpenaiTopP?: number | null;
     webSearchSystemPrompt?: string | null; // 新增
     // 新增高级触发设置
     timedTriggerEnabled?: boolean;
@@ -172,6 +212,11 @@ export interface UpdatePresetData {
     aiTriggerApiKey?: string | null;
     aiTriggerBaseUrl?: string | null;
     aiTriggerModel?: string | null;
+    aiTriggerOpenaiMaxTokens?: number | null;
+    aiTriggerOpenaiTemperature?: number | null;
+    aiTriggerOpenaiFrequencyPenalty?: number | null;
+    aiTriggerOpenaiPresencePenalty?: number | null;
+    aiTriggerOpenaiTopP?: number | null;
     aiTriggerKeyword?: string | null;
     aiTriggerKeywordFuzzyMatch?: boolean; // 新增
     aiTriggerSystemPrompt?: string | null;
@@ -216,11 +261,21 @@ export async function updatePreset(id: number, data: UpdatePresetData): Promise<
     if (data.openaiApiKey !== undefined) updateData.openaiApiKey = data.openaiApiKey;
     if (data.openaiBaseUrl !== undefined) updateData.openaiBaseUrl = data.openaiBaseUrl;
     if (data.openaiModel !== undefined) updateData.openaiModel = data.openaiModel;
+    if (data.openaiMaxTokens !== undefined) updateData.openaiMaxTokens = data.openaiMaxTokens;
+    if (data.openaiTemperature !== undefined) updateData.openaiTemperature = data.openaiTemperature;
+    if (data.openaiFrequencyPenalty !== undefined) updateData.openaiFrequencyPenalty = data.openaiFrequencyPenalty;
+    if (data.openaiPresencePenalty !== undefined) updateData.openaiPresencePenalty = data.openaiPresencePenalty;
+    if (data.openaiTopP !== undefined) updateData.openaiTopP = data.openaiTopP;
     // 联网设置
     if (data.allowWebSearch !== undefined) updateData.allowWebSearch = data.allowWebSearch;
     if (data.webSearchApiKey !== undefined) updateData.webSearchApiKey = data.webSearchApiKey;
     if (data.webSearchBaseUrl !== undefined) updateData.webSearchBaseUrl = data.webSearchBaseUrl;
     if (data.webSearchModel !== undefined) updateData.webSearchModel = data.webSearchModel;
+    if (data.webSearchOpenaiMaxTokens !== undefined) updateData.webSearchOpenaiMaxTokens = data.webSearchOpenaiMaxTokens;
+    if (data.webSearchOpenaiTemperature !== undefined) updateData.webSearchOpenaiTemperature = data.webSearchOpenaiTemperature;
+    if (data.webSearchOpenaiFrequencyPenalty !== undefined) updateData.webSearchOpenaiFrequencyPenalty = data.webSearchOpenaiFrequencyPenalty;
+    if (data.webSearchOpenaiPresencePenalty !== undefined) updateData.webSearchOpenaiPresencePenalty = data.webSearchOpenaiPresencePenalty;
+    if (data.webSearchOpenaiTopP !== undefined) updateData.webSearchOpenaiTopP = data.webSearchOpenaiTopP;
     if (data.webSearchSystemPrompt !== undefined) updateData.webSearchSystemPrompt = data.webSearchSystemPrompt;
     // 新增高级触发设置
     if (data.timedTriggerEnabled !== undefined) updateData.timedTriggerEnabled = data.timedTriggerEnabled;
@@ -231,6 +286,11 @@ export async function updatePreset(id: number, data: UpdatePresetData): Promise<
     if (data.aiTriggerApiKey !== undefined) updateData.aiTriggerApiKey = data.aiTriggerApiKey;
     if (data.aiTriggerBaseUrl !== undefined) updateData.aiTriggerBaseUrl = data.aiTriggerBaseUrl;
     if (data.aiTriggerModel !== undefined) updateData.aiTriggerModel = data.aiTriggerModel;
+    if (data.aiTriggerOpenaiMaxTokens !== undefined) updateData.aiTriggerOpenaiMaxTokens = data.aiTriggerOpenaiMaxTokens;
+    if (data.aiTriggerOpenaiTemperature !== undefined) updateData.aiTriggerOpenaiTemperature = data.aiTriggerOpenaiTemperature;
+    if (data.aiTriggerOpenaiFrequencyPenalty !== undefined) updateData.aiTriggerOpenaiFrequencyPenalty = data.aiTriggerOpenaiFrequencyPenalty;
+    if (data.aiTriggerOpenaiPresencePenalty !== undefined) updateData.aiTriggerOpenaiPresencePenalty = data.aiTriggerOpenaiPresencePenalty;
+    if (data.aiTriggerOpenaiTopP !== undefined) updateData.aiTriggerOpenaiTopP = data.aiTriggerOpenaiTopP;
     if (data.aiTriggerKeyword !== undefined) updateData.aiTriggerKeyword = data.aiTriggerKeyword;
     if (data.aiTriggerKeywordFuzzyMatch !== undefined) updateData.aiTriggerKeywordFuzzyMatch = data.aiTriggerKeywordFuzzyMatch; // 新增
     if (data.aiTriggerSystemPrompt !== undefined) updateData.aiTriggerSystemPrompt = data.aiTriggerSystemPrompt;

@@ -20,16 +20,42 @@ import { FastifyBaseLogger } from 'fastify'; // Import logger type
 // Removed reinitializeOpenAIClient function
 
 // Define the configuration type expected by callOpenAI
+// Includes parameters for main call, web search, and AI trigger
 interface OpenAIConfig {
     apiKey: string;
     baseURL?: string | null;
     modelName: string;
-    allowWebSearch?: boolean; // 添加是否允许联网搜索的配置
-    webSearchApiKey?: string; // 添加联网搜索API Key
-    webSearchBaseUrl?: string | null; // 添加联网搜索Base URL
-    webSearchModel?: string; // 添加联网搜索模型名称
-    webSearchSystemPrompt?: string | null; // 新增：来自预设/伪装的联网搜索系统提示词
-    rawUserTextForSearch?: string; // 新增：用于联网搜索的原始用户文本
+    // Main OpenAI call parameters
+    openaiMaxTokens?: number | null;
+    openaiTemperature?: number | null;
+    openaiFrequencyPenalty?: number | null;
+    openaiPresencePenalty?: number | null;
+    openaiTopP?: number | null;
+
+    // Web Search specific settings
+    allowWebSearch?: boolean;
+    webSearchApiKey?: string | null; // Use this or main apiKey if null
+    webSearchBaseUrl?: string | null; // Use this or main baseURL if null
+    webSearchModel?: string;
+    webSearchSystemPrompt?: string | null;
+    rawUserTextForSearch?: string;
+    // Web Search specific OpenAI parameters
+    webSearchOpenaiMaxTokens?: number | null;
+    webSearchOpenaiTemperature?: number | null;
+    webSearchOpenaiFrequencyPenalty?: number | null;
+    webSearchOpenaiPresencePenalty?: number | null;
+    webSearchOpenaiTopP?: number | null;
+
+    // AI Trigger specific OpenAI parameters (passed when calling for trigger check)
+    aiTriggerOpenaiMaxTokens?: number | null;
+    aiTriggerOpenaiTemperature?: number | null;
+    aiTriggerOpenaiFrequencyPenalty?: number | null;
+    aiTriggerOpenaiPresencePenalty?: number | null;
+    aiTriggerOpenaiTopP?: number | null;
+    // Note: AI Trigger might use its own apiKey/baseURL/modelName,
+    // which should be handled by the caller constructing the config for callOpenAI.
+    // This interface assumes the caller provides the correct apiKey/baseURL/modelName
+    // based on whether it's a main call, web search summary, or AI trigger check.
 }
 
 // 定义OpenAIResponse接口，联网搜索时返回对象，包含内容和处理后的消息
@@ -106,11 +132,33 @@ async function performStandardAICall(
 
     // 4. 发起 API 调用
     try {
-        const completion = await dynamicOpenai.chat.completions.create({
+        // Prepare parameters, including advanced ones if provided
+        const completionParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
             model: config.modelName,
             messages: messages as ChatCompletionMessageParam[],
-            // temperature: 0.7, // 可以根据需要从 config 中获取
-        });
+        };
+        // Add advanced parameters if they exist and are not null
+        if (config.openaiMaxTokens !== null && config.openaiMaxTokens !== undefined) {
+            completionParams.max_tokens = config.openaiMaxTokens;
+        }
+        if (config.openaiTemperature !== null && config.openaiTemperature !== undefined) {
+            completionParams.temperature = config.openaiTemperature;
+        }
+        if (config.openaiFrequencyPenalty !== null && config.openaiFrequencyPenalty !== undefined) {
+            completionParams.frequency_penalty = config.openaiFrequencyPenalty;
+        }
+        if (config.openaiPresencePenalty !== null && config.openaiPresencePenalty !== undefined) {
+            completionParams.presence_penalty = config.openaiPresencePenalty;
+        }
+        if (config.openaiTopP !== null && config.openaiTopP !== undefined) {
+            completionParams.top_p = config.openaiTopP;
+        }
+        // Log the parameters being sent (excluding messages for brevity in info log)
+        const paramsForLog = { ...completionParams };
+        delete (paramsForLog as any).messages; // Remove messages for cleaner log
+        logger.debug({ params: paramsForLog }, '[openai-client] Parameters sent to OpenAI API');
+
+        const completion = await dynamicOpenai.chat.completions.create(completionParams);
 
         const choice = completion.choices?.[0];
         if (choice?.message?.content) {
@@ -308,11 +356,22 @@ async function performWebSearch(
         });
         
         // 使用第二个模型和替换变量后的消息进行第二次调用
-        const secondCallResult = await performStandardAICallWithLogs(processedMessages, {
-            ...config,
-            // 确保使用普通的 OpenAI 模型进行第二次调用，而不是联网搜索模型
-            allowWebSearch: false  // 禁用第二次调用的联网搜索，避免循环
-        }, logger);
+        // Construct config for the second call, using web search specific parameters
+        const secondCallConfig: OpenAIConfig = {
+            apiKey: config.apiKey, // Use main API key for the summary call
+            baseURL: config.baseURL, // Use main base URL
+            modelName: config.modelName, // Use main model for summary
+            allowWebSearch: false, // Ensure web search is disabled for the summary call
+            // Pass web search specific OpenAI parameters
+            openaiMaxTokens: config.webSearchOpenaiMaxTokens,
+            openaiTemperature: config.webSearchOpenaiTemperature,
+            openaiFrequencyPenalty: config.webSearchOpenaiFrequencyPenalty,
+            openaiPresencePenalty: config.webSearchOpenaiPresencePenalty,
+            openaiTopP: config.webSearchOpenaiTopP,
+            // Other fields from original config are not needed here unless performStandardAICallWithLogs requires them
+        };
+
+        const secondCallResult = await performStandardAICallWithLogs(processedMessages, secondCallConfig, logger);
         
         // 返回结果和处理后的消息，让message-handler能够记录日志
         return { 
@@ -371,10 +430,35 @@ async function performStandardAICallWithLogs(
 
     // 发起 API 调用
     try {
-        const completion = await dynamicOpenai.chat.completions.create({
+        // Prepare parameters, including advanced ones if provided
+        const completionParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
             model: config.modelName,
             messages: messages as ChatCompletionMessageParam[],
-        });
+        };
+        // Add advanced parameters if they exist and are not null
+        // Note: This function is called by performWebSearch for the summary,
+        // so the config passed in should contain the webSearch specific parameters mapped to the generic names.
+        if (config.openaiMaxTokens !== null && config.openaiMaxTokens !== undefined) {
+            completionParams.max_tokens = config.openaiMaxTokens;
+        }
+        if (config.openaiTemperature !== null && config.openaiTemperature !== undefined) {
+            completionParams.temperature = config.openaiTemperature;
+        }
+        if (config.openaiFrequencyPenalty !== null && config.openaiFrequencyPenalty !== undefined) {
+            completionParams.frequency_penalty = config.openaiFrequencyPenalty;
+        }
+        if (config.openaiPresencePenalty !== null && config.openaiPresencePenalty !== undefined) {
+            completionParams.presence_penalty = config.openaiPresencePenalty;
+        }
+        if (config.openaiTopP !== null && config.openaiTopP !== undefined) {
+            completionParams.top_p = config.openaiTopP;
+        }
+        // Log the parameters being sent (excluding messages for brevity in info log)
+        const paramsForLog = { ...completionParams };
+        delete (paramsForLog as any).messages; // Remove messages for cleaner log
+        logger.debug({ params: paramsForLog }, '[openai-client] Parameters sent to OpenAI API (performStandardAICallWithLogs)');
+
+        const completion = await dynamicOpenai.chat.completions.create(completionParams);
 
         const choice = completion.choices?.[0];
         if (choice?.message?.content) {

@@ -168,11 +168,21 @@ async function exportSingleDisguisePreset(presetId, button) {
             openaiApiKey: preset.openaiApiKey || null,
             openaiBaseUrl: preset.openaiBaseUrl || null,
             openaiModel: preset.openaiModel || 'gpt-3.5-turbo',
+            openaiMaxTokens: preset.openaiMaxTokens ?? 1024,
+            openaiTemperature: preset.openaiTemperature ?? 1.0,
+            openaiFrequencyPenalty: preset.openaiFrequencyPenalty ?? 0.0,
+            openaiPresencePenalty: preset.openaiPresencePenalty ?? 0.0,
+            openaiTopP: preset.openaiTopP ?? 1.0,
             // 联网设置
             allowWebSearch: preset.allowWebSearch ?? false,
             webSearchApiKey: preset.webSearchApiKey || null,
             webSearchBaseUrl: preset.webSearchBaseUrl || null,
             webSearchModel: preset.webSearchModel || 'gemini-2.0-flash',
+            webSearchOpenaiMaxTokens: preset.webSearchOpenaiMaxTokens ?? 1024,
+            webSearchOpenaiTemperature: preset.webSearchOpenaiTemperature ?? 1.0,
+            webSearchOpenaiFrequencyPenalty: preset.webSearchOpenaiFrequencyPenalty ?? 0.0,
+            webSearchOpenaiPresencePenalty: preset.webSearchOpenaiPresencePenalty ?? 0.0,
+            webSearchOpenaiTopP: preset.webSearchOpenaiTopP ?? 1.0,
             webSearchSystemPrompt: preset.webSearchSystemPrompt || null, // Added missing web search prompt
             // Advanced Trigger Settings
             timedTriggerEnabled: preset.timedTriggerEnabled ?? false,
@@ -182,7 +192,12 @@ async function exportSingleDisguisePreset(presetId, button) {
             aiTriggerEnabled: preset.aiTriggerEnabled ?? false,
             aiTriggerApiKey: preset.aiTriggerApiKey || null,
             aiTriggerBaseUrl: preset.aiTriggerBaseUrl || null,
-            aiTriggerModel: preset.aiTriggerModel || null,
+            aiTriggerModel: preset.aiTriggerModel || null, // Default in Zod is gpt-3.5-turbo, but null is fine if not set
+            aiTriggerOpenaiMaxTokens: preset.aiTriggerOpenaiMaxTokens ?? 1024,
+            aiTriggerOpenaiTemperature: preset.aiTriggerOpenaiTemperature ?? 1.0,
+            aiTriggerOpenaiFrequencyPenalty: preset.aiTriggerOpenaiFrequencyPenalty ?? 0.0,
+            aiTriggerOpenaiPresencePenalty: preset.aiTriggerOpenaiPresencePenalty ?? 0.0,
+            aiTriggerOpenaiTopP: preset.aiTriggerOpenaiTopP ?? 1.0,
             aiTriggerKeyword: preset.aiTriggerKeyword || null,
             aiTriggerKeywordFuzzyMatch: preset.aiTriggerKeywordFuzzyMatch ?? false,
             aiTriggerSystemPrompt: preset.aiTriggerSystemPrompt || null,
@@ -194,9 +209,9 @@ async function exportSingleDisguisePreset(presetId, button) {
         // If user chose 'no', remove sensitive data
         if (exportChoice === 'no') {
             const sensitiveKeys = [
-                'openaiApiKey', 'openaiBaseUrl', 'openaiModel',
-                'webSearchApiKey', 'webSearchBaseUrl', 'webSearchModel',
-                'aiTriggerApiKey', 'aiTriggerBaseUrl', 'aiTriggerModel'
+                'openaiApiKey', 'openaiBaseUrl', 'openaiModel', 'openaiMaxTokens', 'openaiTemperature', 'openaiFrequencyPenalty', 'openaiPresencePenalty', 'openaiTopP',
+                'webSearchApiKey', 'webSearchBaseUrl', 'webSearchModel', 'webSearchOpenaiMaxTokens', 'webSearchOpenaiTemperature', 'webSearchOpenaiFrequencyPenalty', 'webSearchOpenaiPresencePenalty', 'webSearchOpenaiTopP',
+                'aiTriggerApiKey', 'aiTriggerBaseUrl', 'aiTriggerModel', 'aiTriggerOpenaiMaxTokens', 'aiTriggerOpenaiTemperature', 'aiTriggerOpenaiFrequencyPenalty', 'aiTriggerOpenaiPresencePenalty', 'aiTriggerOpenaiTopP'
             ];
             // Create a copy to modify
             const sanitizedPreset = { ...presetToExport };

@@ -9,6 +9,7 @@ import {
     upsertDisguiseAssignment,
     deleteDisguiseAssignment
 } from '../db/disguise';
+import { prisma } from '../db/prismaClient'; // +++ Import prisma client +++
 import { AssignmentType, DisguisePreset } from '@prisma/client'; // Import enum and type
 import { PresetContent } from '../core/types'; // Import shared type
 import { updateOrRemoveTimedTriggerForPreset } from '../core/trigger-scheduler'; // +++ Import scheduler function
@@ -34,11 +35,21 @@ interface CreateDisguisePresetBody {
     openaiApiKey?: string | null;
     openaiBaseUrl?: string | null;
     openaiModel?: string;
+    openaiMaxTokens?: number | null;
+    openaiTemperature?: number | null;
+    openaiFrequencyPenalty?: number | null;
+    openaiPresencePenalty?: number | null;
+    openaiTopP?: number | null;
     // 联网设置
     allowWebSearch?: boolean;
     webSearchApiKey?: string | null;
     webSearchBaseUrl?: string | null;
     webSearchModel?: string;
+    webSearchOpenaiMaxTokens?: number | null;
+    webSearchOpenaiTemperature?: number | null;
+    webSearchOpenaiFrequencyPenalty?: number | null;
+    webSearchOpenaiPresencePenalty?: number | null;
+    webSearchOpenaiTopP?: number | null;
     webSearchSystemPrompt?: string | null; // 新增
     // 新增高级触发设置
     timedTriggerEnabled?: boolean;
@@ -49,6 +60,11 @@ interface CreateDisguisePresetBody {
     aiTriggerApiKey?: string | null;
     aiTriggerBaseUrl?: string | null;
     aiTriggerModel?: string | null;
+    aiTriggerOpenaiMaxTokens?: number | null;
+    aiTriggerOpenaiTemperature?: number | null;
+    aiTriggerOpenaiFrequencyPenalty?: number | null;
+    aiTriggerOpenaiPresencePenalty?: number | null;
+    aiTriggerOpenaiTopP?: number | null;
     aiTriggerKeyword?: string | null;
     aiTriggerKeywordFuzzyMatch?: boolean; // 新增
     aiTriggerSystemPrompt?: string | null;
@@ -75,10 +91,20 @@ interface UpdateDisguisePresetBody {
     openaiApiKey?: string | null;
     openaiBaseUrl?: string | null;
     openaiModel?: string;
+    openaiMaxTokens?: number | null;
+    openaiTemperature?: number | null;
+    openaiFrequencyPenalty?: number | null;
+    openaiPresencePenalty?: number | null;
+    openaiTopP?: number | null;
     allowWebSearch?: boolean;
     webSearchApiKey?: string | null;
     webSearchBaseUrl?: string | null;
     webSearchModel?: string;
+    webSearchOpenaiMaxTokens?: number | null;
+    webSearchOpenaiTemperature?: number | null;
+    webSearchOpenaiFrequencyPenalty?: number | null;
+    webSearchOpenaiPresencePenalty?: number | null;
+    webSearchOpenaiTopP?: number | null;
     webSearchSystemPrompt?: string | null;
     // 新增高级触发设置
     timedTriggerEnabled?: boolean;
@@ -89,6 +115,11 @@ interface UpdateDisguisePresetBody {
     aiTriggerApiKey?: string | null;
     aiTriggerBaseUrl?: string | null;
     aiTriggerModel?: string | null;
+    aiTriggerOpenaiMaxTokens?: number | null;
+    aiTriggerOpenaiTemperature?: number | null;
+    aiTriggerOpenaiFrequencyPenalty?: number | null;
+    aiTriggerOpenaiPresencePenalty?: number | null;
+    aiTriggerOpenaiTopP?: number | null;
     aiTriggerKeyword?: string | null;
     aiTriggerKeywordFuzzyMatch?: boolean; // 新增
     aiTriggerSystemPrompt?: string | null;
@@ -222,10 +253,20 @@ async function disguiseRoutes(fastify: FastifyInstance, options: FastifyPluginOp
             if (body.openaiApiKey !== undefined) dataForDb.openaiApiKey = body.openaiApiKey;
             if (body.openaiBaseUrl !== undefined) dataForDb.openaiBaseUrl = body.openaiBaseUrl;
             if (body.openaiModel !== undefined) dataForDb.openaiModel = body.openaiModel;
+            if (body.openaiMaxTokens !== undefined) dataForDb.openaiMaxTokens = body.openaiMaxTokens;
+            if (body.openaiTemperature !== undefined) dataForDb.openaiTemperature = body.openaiTemperature;
+            if (body.openaiFrequencyPenalty !== undefined) dataForDb.openaiFrequencyPenalty = body.openaiFrequencyPenalty;
+            if (body.openaiPresencePenalty !== undefined) dataForDb.openaiPresencePenalty = body.openaiPresencePenalty;
+            if (body.openaiTopP !== undefined) dataForDb.openaiTopP = body.openaiTopP;
             if (body.allowWebSearch !== undefined) dataForDb.allowWebSearch = body.allowWebSearch;
             if (body.webSearchApiKey !== undefined) dataForDb.webSearchApiKey = body.webSearchApiKey;
             if (body.webSearchBaseUrl !== undefined) dataForDb.webSearchBaseUrl = body.webSearchBaseUrl;
             if (body.webSearchModel !== undefined) dataForDb.webSearchModel = body.webSearchModel;
+            if (body.webSearchOpenaiMaxTokens !== undefined) dataForDb.webSearchOpenaiMaxTokens = body.webSearchOpenaiMaxTokens;
+            if (body.webSearchOpenaiTemperature !== undefined) dataForDb.webSearchOpenaiTemperature = body.webSearchOpenaiTemperature;
+            if (body.webSearchOpenaiFrequencyPenalty !== undefined) dataForDb.webSearchOpenaiFrequencyPenalty = body.webSearchOpenaiFrequencyPenalty;
+            if (body.webSearchOpenaiPresencePenalty !== undefined) dataForDb.webSearchOpenaiPresencePenalty = body.webSearchOpenaiPresencePenalty;
+            if (body.webSearchOpenaiTopP !== undefined) dataForDb.webSearchOpenaiTopP = body.webSearchOpenaiTopP;
             if (body.webSearchSystemPrompt !== undefined) dataForDb.webSearchSystemPrompt = body.webSearchSystemPrompt;
             if (body.timedTriggerEnabled !== undefined) dataForDb.timedTriggerEnabled = body.timedTriggerEnabled;
             if (body.timedTriggerInterval !== undefined) dataForDb.timedTriggerInterval = body.timedTriggerInterval;
@@ -235,6 +276,11 @@ async function disguiseRoutes(fastify: FastifyInstance, options: FastifyPluginOp
             if (body.aiTriggerApiKey !== undefined) dataForDb.aiTriggerApiKey = body.aiTriggerApiKey;
             if (body.aiTriggerBaseUrl !== undefined) dataForDb.aiTriggerBaseUrl = body.aiTriggerBaseUrl;
             if (body.aiTriggerModel !== undefined) dataForDb.aiTriggerModel = body.aiTriggerModel;
+            if (body.aiTriggerOpenaiMaxTokens !== undefined) dataForDb.aiTriggerOpenaiMaxTokens = body.aiTriggerOpenaiMaxTokens;
+            if (body.aiTriggerOpenaiTemperature !== undefined) dataForDb.aiTriggerOpenaiTemperature = body.aiTriggerOpenaiTemperature;
+            if (body.aiTriggerOpenaiFrequencyPenalty !== undefined) dataForDb.aiTriggerOpenaiFrequencyPenalty = body.aiTriggerOpenaiFrequencyPenalty;
+            if (body.aiTriggerOpenaiPresencePenalty !== undefined) dataForDb.aiTriggerOpenaiPresencePenalty = body.aiTriggerOpenaiPresencePenalty;
+            if (body.aiTriggerOpenaiTopP !== undefined) dataForDb.aiTriggerOpenaiTopP = body.aiTriggerOpenaiTopP;
             if (body.aiTriggerKeyword !== undefined) dataForDb.aiTriggerKeyword = body.aiTriggerKeyword;
             if (body.aiTriggerKeywordFuzzyMatch !== undefined) dataForDb.aiTriggerKeywordFuzzyMatch = body.aiTriggerKeywordFuzzyMatch; // 新增
             if (body.aiTriggerSystemPrompt !== undefined) dataForDb.aiTriggerSystemPrompt = body.aiTriggerSystemPrompt;
@@ -278,6 +324,20 @@ async function disguiseRoutes(fastify: FastifyInstance, options: FastifyPluginOp
             } else {
                 reply.status(500).send({ error: '删除伪装预设失败' });
             }
+        }
+    });
+
+    // GET /api/disguise-presets/export - Export all disguise presets
+    fastify.get('/presets/export', async (request: FastifyRequest, reply: FastifyReply) => {
+        try {
+            const presets = await prisma.disguisePreset.findMany({ // Use prisma client directly for safety
+                orderBy: { name: 'asc' }, // Optional: order by name
+            });
+            reply.header('Content-Disposition', 'attachment; filename="disguise_presets_export.json"');
+            reply.send(presets);
+        } catch (error) {
+            request.log.error('导出伪装预设失败:', error);
+            reply.status(500).send({ error: '导出伪装预设失败' });
         }
     });
 
