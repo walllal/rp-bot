@@ -81,9 +81,14 @@ export function parseAdvancedResponse(responseText: string): AdvancedOperation[]
 
         while ((tagMatch = tagRegex.exec(blockContent)) !== null) {
             // 检查标签前是否有裸露文本 (在 <pre> 之外) - 通常应该避免，但可以作为 text 段处理
-            const textBeforeTag = blockContent.substring(lastBlockIndex, tagMatch.index).trim();
+            let textBeforeTag = blockContent.substring(lastBlockIndex, tagMatch.index).trim();
             if (textBeforeTag) {
-                currentSegments.push({ type: 'text', data: { text: textBeforeTag } });
+                // 只有当裸露文本不包含类似标签的结构时才发送
+                if (!textBeforeTag.includes("<pre") && !textBeforeTag.includes("<image")) {
+                    currentSegments.push({ type: 'text', data: { text: textBeforeTag } });
+                } else {
+                    log('debug', '检测到标签前的裸露文本中包含类标签结构，已忽略:', textBeforeTag);
+                }
             }
 
             // 由于移除了<voice>标签的直接匹配，需要调整解构赋值
@@ -176,9 +181,14 @@ export function parseAdvancedResponse(responseText: string): AdvancedOperation[]
         }
 
         // 处理最后一个标签之后可能存在的裸露文本
-        const textAfterLastTag = blockContent.substring(lastBlockIndex).trim();
+        let textAfterLastTag = blockContent.substring(lastBlockIndex).trim();
         if (textAfterLastTag) {
-            currentSegments.push({ type: 'text', data: { text: textAfterLastTag } });
+            // 只有当裸露文本不包含类似标签的结构时才发送
+            if (!textAfterLastTag.includes("<pre") && !textAfterLastTag.includes("<image")) {
+                currentSegments.push({ type: 'text', data: { text: textAfterLastTag } });
+            } else {
+                log('debug', '检测到最后一个标签后的裸露文本中包含类标签结构，已忽略:', textAfterLastTag);
+            }
         }
 
         // 如果在处理完一个 <message> 块后，仍有未发送的消息段，打包它们
@@ -215,8 +225,8 @@ function parsePreContent(preText: string, segments: OneBotMessageSegment[]): voi
         
         // 处理标签前的文本
         if (tagMatch.index !== undefined && tagMatch.index > lastIndex) {
-            const textBefore = preText.substring(lastIndex, tagMatch.index).trim();
-            if (textBefore) {
+            const textBefore = preText.substring(lastIndex, tagMatch.index); // 不使用 trim()
+            if (textBefore) { // 检查是否为空字符串，但保留空格
                 segments.push({ type: 'text', data: { text: textBefore } });
             }
         }
@@ -241,15 +251,14 @@ function parsePreContent(preText: string, segments: OneBotMessageSegment[]): voi
     
     // 处理最后一个标签后的文本
     if (hasTag) {
-        const textAfter = preText.substring(lastIndex).trim();
-        if (textAfter) {
+        const textAfter = preText.substring(lastIndex); // 不使用 trim()
+        if (textAfter) { // 检查是否为空字符串，但保留空格
             segments.push({ type: 'text', data: { text: textAfter } });
         }
     } else {
-        // 没有任何标签，直接添加为纯文本（确保不为空）
-        const trimmedText = preText.trim();
-        if (trimmedText) {
-            segments.push({ type: 'text', data: { text: trimmedText } });
+        // 没有任何标签，直接添加为纯文本（如果 preText 本身不为空）
+        if (preText) { // 检查 preText 是否为空字符串，但保留空格
+            segments.push({ type: 'text', data: { text: preText } });
         }
     }
 }

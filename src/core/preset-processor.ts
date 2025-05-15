@@ -101,7 +101,7 @@ export async function substituteVariables(template: string, context: VariableCon
                         const historyToUse = rawHistory.length > 1 ? rawHistory.slice(1) : rawHistory;
                         
                         // Format the raw history according to the new spec (newest last)
-                        return historyToUse.reverse().map(item => {
+                        const mappedMessages = historyToUse.reverse().map(item => {
                             // Format date and time
                             const date = new Date(item.timestamp);
                             const formattedDate = `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}`;
@@ -114,7 +114,8 @@ export async function substituteVariables(template: string, context: VariableCon
                                 if (typeof rawMsg === 'string') messageText = rawMsg;
                                 else if (Array.isArray(rawMsg)) {
                                     messageText = rawMsg.map(segment => {
-                                        if (segment.type === 'text') return segment.text || segment.data?.text || ''; // Check segment.text first
+                                        if (segment.type === 'text') return segment.text || segment.data?.text || '';
+                                        if (segment.type === 'image_url') return '[图片]'; // Handle image_url type
                                         if (segment.type === 'image') return '[图片]';
                                         if (segment.type === 'face') return `[表情:${segment.data?.id}]`;
                                         if (segment.type === 'at') return `[@${segment.data?.qq}]`;
@@ -130,7 +131,13 @@ export async function substituteVariables(template: string, context: VariableCon
 
                             // Format the final string
                             return `(user_id: ${item.userId}, user_name: ${userName}, date: ${formattedDate}, time: ${formattedTime}): ${messageText.trim()}`;
-                        }).join('\n');
+                        });
+                        let fullHistoryText = mappedMessages.join('\n');
+                        // For {{message_history}} variable, convert [@ID] to <at>ID</at>
+                        if (fullHistoryText) {
+                            fullHistoryText = fullHistoryText.replace(/\[@([^\]]+)\]/g, '<at>$1</at>');
+                        }
+                        return fullHistoryText;
                     } else {
                         return '[无消息历史记录]';
                     }
@@ -171,7 +178,10 @@ export async function substituteVariables(template: string, context: VariableCon
                             // Use userName if available, otherwise fallback based on role
                             // Use 'as any' to access potentially missing userName due to type issues
                             const senderName = (item as any).userName || (item.role === 'USER' ? '用户' : '助手');
-                            return `(user_id: ${item.userId}, user_name: ${senderName}, date: ${formattedDate}, time: ${formattedTime}): ${item.content.trim()}`;
+                            let chatItemContent = item.content.trim();
+                            // For {{chat_history}} variable, convert [@ID] to <at>ID</at>
+                            chatItemContent = chatItemContent.replace(/\[@([^\]]+)\]/g, '<at>$1</at>');
+                            return `(user_id: ${item.userId}, user_name: ${senderName}, date: ${formattedDate}, time: ${formattedTime}): ${chatItemContent}`;
                         }).join('\n');
                     } else {
                         return '[无对话历史记录]'; // Return specific text if no history
@@ -206,15 +216,20 @@ export async function substituteVariables(template: string, context: VariableCon
                             else if (Array.isArray(rawMsg)) {
                                 messageText = rawMsg.map(segment => {
                                     if (segment.type === 'text') return segment.text || segment.data?.text || '';
+                                    if (segment.type === 'image_url') return '[图片]'; // Handle image_url type
                                     if (segment.type === 'image') return '[图片]';
                                     if (segment.type === 'face') return `[表情:${segment.data?.id}]`;
-                                    if (segment.type === 'at') return `[@${segment.data?.qq}]`;
+                                    if (segment.type === 'at') return `[@${segment.data?.qq}]`; // Keep as [@ID] for {{message_last}}
                                     if (segment.type === 'reply') return `[回复:${segment.data?.id}]`;
                                     return `[${segment.type}]`;
                                 }).join('');
                             }
                         } catch (e) { console.error("Error parsing raw message for message_last:", e); }
                         const userName = (item as any).userName || '未知';
+                        // For {{message_last}} variable, convert [@ID] to <at>ID</at>
+                        if (messageText) {
+                            messageText = messageText.replace(/\[@([^\]]+)\]/g, '<at>$1</at>');
+                        }
                         return `(user_id: ${item.userId}, user_name: ${userName}, date: ${formattedDate}, time: ${formattedTime}): ${messageText.trim()}`;
                     } else {
                         return '[无最新消息记录]';
@@ -369,8 +384,13 @@ export async function substituteVariables(template: string, context: VariableCon
          // console.warn(`在 substituteVariables 中遇到未定义变量: ${match}, 将替换为空字符串.`);
          if (key === 'user_input') {
           // 修改: 不再返回原始匹配，而是直接替换为用户输入
-          console.log(`[substituteVariables] 检测到 'user_input'，将替换为用户输入: "${context.message || ''}"`);
-          return context.message || ''; // 返回用户输入文本，如果不存在则返回空字符串
+          let userInput = context.message || '';
+          // For {{user_input}} variable, convert [@ID] to <at>ID</at>
+          if (userInput) {
+            userInput = userInput.replace(/\[@([^\]]+)\]/g, '<at>$1</at>');
+          }
+          console.log(`[substituteVariables] 检测到 'user_input'，将替换为用户输入 (处理后): "${userInput}"`);
+          return userInput;
          }
          // 移除对 {{last_message}} 的特殊警告，因为它现在不应该被匹配到这里
          // if (key === 'last_message') {

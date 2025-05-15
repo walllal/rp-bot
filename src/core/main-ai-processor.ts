@@ -33,7 +33,8 @@ export async function processAndExecuteMainAi(
     senderUserId: string, // Always the ID of the user who sent the message
     senderNickname: string | undefined, // Nickname of the sender
     senderCard: string | undefined, // Group card name of the sender
-    userInputText: string, // This is the "trigger message" or user's actual message
+    userInputText: string, // This is the "trigger message" or user's actual message (text part)
+    userImageItems: Array<{ type: 'image_url', image_url: { url: string } }> | undefined, // Image part
     serverInstance: FastifyInstance,
     // Optional: if the trigger provides a specific messageId to reply to (e.g., for threaded replies later)
     replyToMessageId?: string,
@@ -148,7 +149,52 @@ export async function processAndExecuteMainAi(
 
     // Filter out any messages that ended up with empty content after substitution,
     // or messages that were just placeholders and didn't resolve to content (e.g. an empty system message if {{system_var}} was empty)
-    const finalMessages = messagesForOpenAI.filter(m => m.content && (typeof m.content !== 'string' || m.content.trim() !== '') && m.content.length > 0);
+    let finalMessages = messagesForOpenAI.filter(m => m.content && (typeof m.content !== 'string' || m.content.trim() !== '') && m.content.length > 0);
+
+    // If image input is allowed and images are provided, modify the user's message to be multi-modal
+    if (config.allowImageInput && userImageItems && userImageItems.length > 0) {
+        let userMessageIndex = -1;
+        // Find the last user message that matches the userInputText, as this is likely the current turn's input
+        for (let i = finalMessages.length - 1; i >= 0; i--) {
+            if (finalMessages[i].role === 'user' &&
+                typeof finalMessages[i].content === 'string' &&
+                finalMessages[i].content === userInputText) {
+                userMessageIndex = i;
+                break;
+            }
+        }
+
+        if (userMessageIndex !== -1) {
+            const userMessageToModify = finalMessages[userMessageIndex];
+            const newContentArray: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string } }> =
+                [{ type: 'text', text: userMessageToModify.content as string }];
+
+            userImageItems.forEach(imgItem => {
+                newContentArray.push({ type: 'image_url', image_url: { url: imgItem.image_url.url } });
+            });
+            finalMessages[userMessageIndex] = { ...userMessageToModify, content: newContentArray };
+            log('debug', `Attached ${userImageItems.length} images to user message for OpenAI.`, serverInstance);
+        } else {
+            // If no exact text match, but we have images and text, consider appending a new multi-modal message.
+            // This case might occur if {{user_input}} was not used or was part of a more complex template.
+            // For simplicity now, we log a warning. A more robust solution might be to always append
+            // a new user message if images are present and no clear text message was found to attach to.
+            if (userInputText.trim() || userImageItems.length > 0) { // Only if there's some content
+                 log('warn', `Could not find exact user text message to attach images. Appending new multi-modal message. User text: "${userInputText}"`, serverInstance);
+                 const newMultimodalMessageContent: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string } }> = [];
+                 if (userInputText.trim()) {
+                    newMultimodalMessageContent.push({ type: 'text', text: userInputText });
+                 }
+                 userImageItems.forEach(imgItem => {
+                    newMultimodalMessageContent.push({ type: 'image_url', image_url: { url: imgItem.image_url.url } });
+                 });
+                 // Add as the last user message if not empty
+                 if (newMultimodalMessageContent.length > 0) {
+                    finalMessages.push({role: 'user', content: newMultimodalMessageContent as any});
+                 }
+            }
+        }
+    }
 
     if (finalMessages.length === 0) {
         log('warn', `No messages to send to OpenAI after processing for ${config.name} in context ${contextType}:${contextId}`, serverInstance);

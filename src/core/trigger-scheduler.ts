@@ -156,6 +156,7 @@ async function executeSubAiForSpecificContext(
                 undefined,              // senderNickname (none for timed trigger)
                 undefined,              // senderCard (none for timed trigger)
                 mainAiTriggerMessage,   // userInputText
+                undefined,              // userImageItems (timed triggers don't have images)
                 serverInstance,         // serverInstance
                 undefined,              // replyToMessageId (none for timed trigger)
                 undefined               // replyToContent (none for timed trigger)

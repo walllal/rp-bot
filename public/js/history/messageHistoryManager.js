@@ -50,85 +50,81 @@ function renderMessageHistory(history, botIdToUse) {
     history.forEach(item => {
         // Removed p declaration from here
 
-        let messageContent = '';
-        try {
-            const rawMsg = item.rawMessage;
-            const isAdvancedMode = typeof item.messageId === 'string' && item.messageId.includes('advanced');
-            
-            if (Array.isArray(rawMsg) && rawMsg.length > 0 && typeof rawMsg[0] === 'object') {
-                // 提取原始消息内容
-                let combinedMessage = '';
-                
-                for (const segment of rawMsg) {
-                    if (segment.type === 'text' && segment.data && segment.data.text) {
-                        combinedMessage += segment.data.text;
-                    } else if (segment.type === 'image') {
-                        // 使用格式 <image>URL</image>
-                        combinedMessage += `<image>${segment.data.file}</image>`;
-                    } else if (segment.type === 'at' && segment.data && segment.data.qq) {
-                        combinedMessage += `<at>${segment.data.qq}</at>`;
-                    } else if (segment.text) {
-                        combinedMessage += segment.text;
-                    } else {
-                        combinedMessage += `[${segment.type || '未知类型'}]`;
-                    }
-                }
-                
-                if (!combinedMessage.trim()) {
-                    combinedMessage = '[空消息]';
-                }
-                
-                messageContent = combinedMessage;
-            } else {
-                messageContent = `[未知格式]: ${JSON.stringify(rawMsg)}`;
-            }
-        } catch (parseError) {
-            console.error('解析 rawMessage 失败:', parseError, item.rawMessage);
-            messageContent = '[解析 rawMessage 时出错]';
-        }
-
-        // Declare metadataParts once at the beginning of the loop iteration
-        let metadataParts = [];
-
-        // 判断是否是机器人消息（以下任一条件成立）
-        const isBotReplyMessage = typeof item.messageId === 'string' && item.messageId.startsWith('bot_reply');
-        const isBotAdvancedMessage = typeof item.messageId === 'string' && item.messageId.startsWith('bot_advanced_'); // Check for advanced preset messages
-        // Use the passed botIdToUse for matching
-        const isBotIdMatch = item.userId && botIdToUse && item.userId.toString() === botIdToUse.toString();
-        const isAssistantId = item.userId === 'assistant';
-        // Combine checks (removed hardcoded isKnownBotId)
-        const isBotMessage = isBotReplyMessage || isBotAdvancedMessage || isBotIdMatch || isAssistantId;
-
-        // 如果是机器人消息，则跳过渲染 (使用 return 退出当前回调)
-        if (isBotMessage) {
-            return;
-        }
-
-        // --- If it's not a bot message, proceed with rendering: ---
-
-        // Create the parent p element for non-bot messages
+        // Create the parent p element for the entire message item
         const p = document.createElement('p');
         p.classList.add('message-history-item');
 
-        // Clear and populate metadataParts for non-bot messages
-        metadataParts = []; // Clear any potential previous values (though unlikely needed here)
-        metadataParts.push(`用户: ${domUtils.escapeHtml(item.userName || item.userId)}`);
+        // --- Metadata Rendering (copied from existing logic as it's correct) ---
+        let metadataParts = [];
+        const isActuallyBotMessage = (botIdToUse && item.userId && item.userId.toString() === botIdToUse.toString()) ||
+                                   (item.botName && item.botName.trim() !== '') ||
+                                   item.userId === 'BOT_INTERNAL_ID' ||
+                                   item.userId === 'assistant';
+
+        if (isActuallyBotMessage) {
+            let botDisplayName = '助手';
+            if (item.botName && item.botName.trim() !== '') {
+                botDisplayName = item.botName;
+            } else if (item.userName && item.userName.trim() !== '') {
+                botDisplayName = item.userName;
+            }
+            metadataParts.push(`本机: ${domUtils.escapeHtml(botDisplayName)}`);
+        } else {
+            metadataParts.push(`用户: ${domUtils.escapeHtml(item.userName || item.userId)}`);
+        }
         metadataParts.push(`发送者ID: ${item.userId}`);
         metadataParts.push(`时间: ${new Date(item.timestamp).toLocaleString()}`);
 
-        // 创建元数据元素
         const metadataElement = document.createElement('small');
         metadataElement.textContent = metadataParts.join(' | ');
         p.appendChild(metadataElement);
+        // --- End of Metadata Rendering ---
+
+        // --- New Message Content Rendering Logic ---
+        const messageContentDiv = document.createElement('div');
+        messageContentDiv.classList.add('message-history-content');
+        // Removed marginTop or set to 0 to better align with Chat History display
+        messageContentDiv.style.marginTop = '0px';
+
+        const rawMsg = item.rawMessage;
+        const messageContentParts = []; // Removed TypeScript type annotation : string[]
+
+        if (Array.isArray(rawMsg)) {
+            for (let i = 0; i < rawMsg.length; i++) {
+                const part = rawMsg[i];
+                if (part.type === 'image_url') {
+                    messageContentParts.push('[图片]');
+                } else if (part.type === 'text') {
+                    // Ensure part.text is treated as a string, even if it's null or undefined initially
+                    const textContent = String(part.text == null ? '' : part.text);
+                    messageContentParts.push(textContent);
+                }
+                // Other types are implicitly ignored for content display here,
+                // assuming they are not expected or handled by UserMessageContentItem structure for display.
+            }
+        } else if (typeof rawMsg === 'string') {
+            messageContentParts.push(rawMsg);
+        } else if (rawMsg === null || typeof rawMsg === 'undefined') {
+            messageContentParts.push('[空消息内容]');
+        } else {
+            messageContentParts.push('[消息内容格式未知]');
+            console.warn('Message History: Unknown rawMessage format for item:', item, rawMsg);
+        }
         
-        // 创建内容元素 - 使用p标签，与chatHistoryManager保持一致
-        const contentElement = document.createElement('p');
-        // 使用 escapeHtml 处理内容，防止潜在的 XSS，并确保标签按文本显示
-        contentElement.innerHTML = domUtils.escapeHtml(messageContent);
-        // 移除 message-history-item p 的默认 margin，因为父元素已有 margin
-        contentElement.style.margin = '0';
+        // Join parts. Filter out truly empty strings resulting from (part.text || '') if part.text was indeed null/undefined.
+        // Then join with space and trim.
+        const finalText = messageContentParts.filter(p => p !== '').join(' ').trim();
         
-        p.appendChild(contentElement);
+        if (finalText) {
+            messageContentDiv.textContent = finalText;
+        } else {
+            // If, after all processing, finalText is empty (e.g., rawMsg was empty array, or only contained empty text parts)
+            // display a placeholder.
+            messageContentDiv.textContent = '[空消息]';
+        }
+        
+        p.appendChild(messageContentDiv);
+        // --- End of New Message Content Rendering Logic ---
         
         messageHistoryOutputDiv.appendChild(p);
     });

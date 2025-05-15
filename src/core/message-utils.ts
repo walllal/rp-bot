@@ -9,28 +9,12 @@ import { OpenAIMessage, UserMessageContentItem } from './types';
  * @param botId 机器人自身的 QQ 号 (仅在高级模式转换 [@me] 时需要)
  * @returns 处理后的文本字符串
  */
-function _transformTextWithAtMentions(text: string, mode: string, botId?: string): string { // Changed selfId to botId
-    if (mode !== 'ADVANCED') {
-        // 非高级模式：移除 [@...]
-        // 仅规范化水平空白字符，保留换行符
-        // 先替换@提及为空格
-        let processed = text.replace(/\[@.*?\]/g, ' ');
-        // 然后按行分割文本，对每行分别处理水平空白，再重新用换行符连接
-        return processed.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trim()).join('\n');
-    } else {
-        // 高级模式：转换 [@...] 为 <at>...</at>
-        return text.replace(/\[@([^\]]+)\]/g, (match, target) => {
-            if (target === 'me') {
-                // 如果有 botId，使用它替换 [@me]
-                if (botId) { // Changed selfId to botId
-                    return `<at>${botId}</at>`; // Changed selfId to botId
-                }
-                // 没有 botId 时，返回一个通用标记
-                return `<at>me</at>`;
-            }
-            return `<at>${target}</at>`;
-        });
-    }
+function _transformTextWithAtMentions(text: string /*, mode: string, botId?: string */): string {
+    // 统一目标：保留所有 [@ID] 格式的提及，仅做必要的空白字符清理。
+    // mode 和 botId 参数对于格式转换不再使用，但保留签名以减少其他地方的修改，
+    // 或者未来可以用于更细致的控制（例如，仅移除@机器人自身发给AI时）。
+    // 当前，我们假设发送给AI的也应该是 [@ID] 格式。
+    return text.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trim()).join('\n');
 }
 
 /**
@@ -43,17 +27,18 @@ function _transformTextWithAtMentions(text: string, mode: string, botId?: string
  */
 export function processAtMentionsInOpenAIMessages(
     messages: OpenAIMessage[],
-    mode: string,
-    botId?: string // Changed selfId to botId
+    mode: string, // Mode is now effectively unused by _transformTextWithAtMentions for @ format conversion
+    botId?: string // botId is now effectively unused by _transformTextWithAtMentions for @ format conversion
 ): OpenAIMessage[] {
     return messages.map(message => {
         const newMessage = { ...message }; // 浅拷贝以修改 content
         if (typeof newMessage.content === 'string') {
-            newMessage.content = _transformTextWithAtMentions(newMessage.content, mode, botId); // Changed selfId to botId
+            // _transformTextWithAtMentions 现在主要做空白清理，并保留 [@ID]
+            newMessage.content = _transformTextWithAtMentions(newMessage.content /*, mode, botId */);
         } else { // content is UserMessageContentItem[]
             newMessage.content = newMessage.content.map(item => {
                 if (item.type === 'text') {
-                    return { ...item, text: _transformTextWithAtMentions(item.text, mode, botId) }; // Changed selfId to botId
+                    return { ...item, text: _transformTextWithAtMentions(item.text /*, mode, botId */) };
                 }
                 return item;
             });
@@ -72,10 +57,12 @@ export function processAtMentionsInOpenAIMessages(
  */
 export function transformUserTextForHistory(
     text: string,
-    mode: string,
-    botId?: string // Changed selfId to botId
+    // mode: string, // Mode is not used for history transformation of @mentions
+    // botId?: string // BotId is not used for history transformation of @mentions
 ): string {
-    return _transformTextWithAtMentions(text, mode, botId); // Changed selfId to botId
+    // For history, we want to preserve [@...] mentions as they are from parseOneBotMessage.
+    // We only normalize whitespace.
+    return text.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trim()).join('\n');
 }
 
 /**
@@ -88,18 +75,18 @@ export function transformUserTextForHistory(
  */
 export function transformUserMessageContentForHistory(
     contentItems: UserMessageContentItem[],
-    mode: string,
-    botId?: string // Changed selfId to botId
+    // mode: string, // Mode is not used for history transformation of @mentions
+    // botId?: string // BotId is not used for history transformation of @mentions
 ): UserMessageContentItem[] {
     return contentItems.map(item => {
         if (item.type === 'text') {
-            const newText = _transformTextWithAtMentions(item.text, mode, botId); // Changed selfId to botId
-            // 如果处理后文本为空，可以考虑是否要保留这个 text item
-            // 当前逻辑是保留，即使 text 为空字符串
+            // For history, preserve [@...] mentions. Only normalize whitespace.
+            const newText = item.text.split('\n').map(line => line.replace(/[ \t]+/g, ' ').trim()).join('\n');
             return { ...item, text: newText };
         }
         return item;
-    }).filter(item => { // 过滤掉处理后文本内容为空的 text item
+    }).filter(item => {
+        // Filter out text items that become effectively empty after whitespace normalization.
         if (item.type === 'text' && !item.text.trim()) {
             return false;
         }
@@ -115,7 +102,8 @@ export function transformUserMessageContentForHistory(
  */
 export function extractPlainTextFromRepliedMessage(rawMessage: any): string {
     if (typeof rawMessage === 'string') {
-        const result = rawMessage.replace(/\[@(?:me|\d+|未知)\]/g, '').replace(/\s\s+/g, ' ').trim();
+        // 保留 [@ID] 提及, 只清理多余空格
+        const result = rawMessage.replace(/\s\s+/g, ' ').trim();
         return result;
     }
 
@@ -163,7 +151,8 @@ export function extractPlainTextFromRepliedMessage(rawMessage: any): string {
             }
         }
         const joinedParts = parts.join(' ');
-        const finalResult = joinedParts.replace(/\[@(?:me|\d+|未知)\]/g, '').replace(/\s\s+/g, ' ').trim();
+        // 保留 [@ID] 提及, 只清理多余空格
+        const finalResult = joinedParts.replace(/\s\s+/g, ' ').trim();
         return finalResult;
     }
 
