@@ -1,3 +1,6 @@
+import axios from 'axios';
+import { Buffer } from 'buffer';
+import sharp from 'sharp';
 import { Preset, DisguisePreset, ContextType as DbContextType, Role as DbRole } from '@prisma/client';
 import { FastifyInstance } from 'fastify';
 import { OpenAIMessage, VariableContext, PresetContent, PresetItemSchema } from './types';
@@ -26,6 +29,74 @@ function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: stri
 }
 
 
+// Helper function to download an image URL and convert it to a Base64 Data URI
+async function imageUrlToDataUri(
+    imageUrl: string,
+    logger: FastifyInstance['log'] | typeof console
+): Promise<string | null> {
+    try {
+        const currentLogger = (typeof (logger as any).trace === 'function') ? logger : console;
+        (currentLogger as any).trace(`[imageUrlToDataUri] Downloading image from URL: ${imageUrl}`);
+        
+        const response = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 15000 // 15 seconds timeout for image download
+        });
+
+        if (response.status !== 200) {
+            (currentLogger as any).warn(`[imageUrlToDataUri] Failed to download image from ${imageUrl}. Status: ${response.status}`);
+            return null;
+        }
+
+        const downloadedImageData = response.data as ArrayBuffer;
+        let imageBufferForBase64 = Buffer.from(downloadedImageData); // Initial buffer from downloaded data
+        
+        let finalMimeType = response.headers['content-type']; // Get MIME type from headers first
+
+        // If header MIME type is missing or not an image type, try to infer from extension
+        if (!finalMimeType || !finalMimeType.startsWith('image/')) {
+            const extension = imageUrl.substring(imageUrl.lastIndexOf('.') + 1).toLowerCase();
+            const extToMime: { [key: string]: string } = {
+                'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+                'gif': 'image/gif', 'webp': 'image/webp',
+            };
+            const inferredMimeType = extToMime[extension];
+            if (inferredMimeType) {
+                finalMimeType = inferredMimeType;
+                (currentLogger as any).trace(`[imageUrlToDataUri] Inferred MIME type '${finalMimeType}' from extension for ${imageUrl}.`);
+            } else {
+                (currentLogger as any).warn(`[imageUrlToDataUri] Could not determine a valid image MIME type for ${imageUrl} from headers or extension '${extension}'. Using 'application/octet-stream'.`);
+                finalMimeType = 'application/octet-stream'; // Fallback
+            }
+        }
+        
+        // If the determined MIME type is GIF, convert to JPEG
+        if (finalMimeType === 'image/gif') {
+            (currentLogger as any).trace(`[imageUrlToDataUri] Original image is GIF. Attempting to convert to JPEG: ${imageUrl}`);
+            try {
+                imageBufferForBase64 = await sharp(imageBufferForBase64)
+                    .jpeg() // Convert to JPEG
+                    .toBuffer();
+                finalMimeType = 'image/jpeg'; // Update MIME type to JPEG
+                (currentLogger as any).trace(`[imageUrlToDataUri] Successfully converted GIF to JPEG for URL: ${imageUrl}`);
+            } catch (conversionError: any) {
+                (currentLogger as any).error(`[imageUrlToDataUri] Failed to convert GIF to JPEG for ${imageUrl}: ${conversionError.message}`, conversionError.stack?.substring(0, 300));
+                // As per user requirement, if GIF to JPEG conversion fails, we should not proceed with this image.
+                return null;
+            }
+        }
+        
+        const base64String = imageBufferForBase64.toString('base64');
+        (currentLogger as any).trace(`[imageUrlToDataUri] Image processed. Final MIME: ${finalMimeType}, Original URL: ${imageUrl}`);
+        return `data:${finalMimeType};base64,${base64String}`;
+
+    } catch (error: any) {
+        const currentLogger = (typeof (logger as any).error === 'function') ? logger : console;
+        (currentLogger as any).error(`[imageUrlToDataUri] Error processing image URL ${imageUrl}: ${error.message}`, error.stack?.substring(0, 500));
+        return null;
+    }
+}
+
 export async function processAndExecuteMainAi(
     config: Preset | DisguisePreset,
     contextType: DbContextType,
@@ -34,11 +105,12 @@ export async function processAndExecuteMainAi(
     senderNickname: string | undefined, // Nickname of the sender
     senderCard: string | undefined, // Group card name of the sender
     userInputText: string, // This is the "trigger message" or user's actual message (text part)
-    userImageItems: Array<{ type: 'image_url', image_url: { url: string } }> | undefined, // Image part
+    userImageItems: Array<{ type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }> | undefined, // Image part
     serverInstance: FastifyInstance,
     // Optional: if the trigger provides a specific messageId to reply to (e.g., for threaded replies later)
     replyToMessageId?: string,
-    replyToContent?: string // Added reply content
+    replyToContent?: string, // Added reply content
+    repliedMessageImageUrls?: string[] // 新增：被回复消息的图片URL数组
 ): Promise<string | null> {
     // Get app settings to retrieve botId
     const appSettings = await getAppSettings(serverInstance.log); // Pass serverInstance.log for logging
@@ -149,53 +221,132 @@ export async function processAndExecuteMainAi(
 
     // Filter out any messages that ended up with empty content after substitution,
     // or messages that were just placeholders and didn't resolve to content (e.g. an empty system message if {{system_var}} was empty)
-    let finalMessages = messagesForOpenAI.filter(m => m.content && (typeof m.content !== 'string' || m.content.trim() !== '') && m.content.length > 0);
+    let modifiableMessages = messagesForOpenAI; // Start with messages from preset
 
-    // If image input is allowed and images are provided, modify the user's message to be multi-modal
-    if (config.allowImageInput && userImageItems && userImageItems.length > 0) {
-        let userMessageIndex = -1;
-        // Find the last user message that matches the userInputText, as this is likely the current turn's input
-        for (let i = finalMessages.length - 1; i >= 0; i--) {
-            if (finalMessages[i].role === 'user' &&
-                typeof finalMessages[i].content === 'string' &&
-                finalMessages[i].content === userInputText) {
-                userMessageIndex = i;
+    // --- Refactored Image Handling ---
+    let userMessageEntryForImages: OpenAIMessage | undefined = undefined;
+    let userMessageEntryIndex = -1;
+
+    // 1. Try to find the last user message that could correspond to userInputText
+    // This loop should operate on `modifiableMessages`.
+    for (let i = modifiableMessages.length - 1; i >= 0; i--) {
+        if (modifiableMessages[i].role === 'user' && typeof modifiableMessages[i].content === 'string') {
+            // Heuristic: if the preset resulted in a user message whose content IS the userInputText,
+            // or if it's the last user message in the list and userInputText is present.
+            const currentContent = modifiableMessages[i].content as string;
+            if (currentContent === userInputText || (i === modifiableMessages.length - 1 && userInputText.trim() !== "")) {
+                userMessageEntryForImages = modifiableMessages[i];
+                userMessageEntryIndex = i;
                 break;
             }
         }
+    }
+    
+    const hasCurrentUserImages = !!(userImageItems && userImageItems.length > 0);
+    const hasRepliedImages = !!(repliedMessageImageUrls && repliedMessageImageUrls.length > 0);
 
-        if (userMessageIndex !== -1) {
-            const userMessageToModify = finalMessages[userMessageIndex];
-            const newContentArray: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string } }> =
-                [{ type: 'text', text: userMessageToModify.content as string }];
-
-            userImageItems.forEach(imgItem => {
-                newContentArray.push({ type: 'image_url', image_url: { url: imgItem.image_url.url } });
-            });
-            finalMessages[userMessageIndex] = { ...userMessageToModify, content: newContentArray };
-            log('debug', `Attached ${userImageItems.length} images to user message for OpenAI.`, serverInstance);
-        } else {
-            // If no exact text match, but we have images and text, consider appending a new multi-modal message.
-            // This case might occur if {{user_input}} was not used or was part of a more complex template.
-            // For simplicity now, we log a warning. A more robust solution might be to always append
-            // a new user message if images are present and no clear text message was found to attach to.
-            if (userInputText.trim() || userImageItems.length > 0) { // Only if there's some content
-                 log('warn', `Could not find exact user text message to attach images. Appending new multi-modal message. User text: "${userInputText}"`, serverInstance);
-                 const newMultimodalMessageContent: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string } }> = [];
-                 if (userInputText.trim()) {
-                    newMultimodalMessageContent.push({ type: 'text', text: userInputText });
-                 }
-                 userImageItems.forEach(imgItem => {
-                    newMultimodalMessageContent.push({ type: 'image_url', image_url: { url: imgItem.image_url.url } });
-                 });
-                 // Add as the last user message if not empty
-                 if (newMultimodalMessageContent.length > 0) {
-                    finalMessages.push({role: 'user', content: newMultimodalMessageContent as any});
-                 }
-            }
-        }
+    // 2. If no suitable existing user message, and there's text or any images to send, create a new one.
+    if (!userMessageEntryForImages && (userInputText.trim() || (config.allowImageInput && hasCurrentUserImages) || hasRepliedImages)) {
+        const newUserMessage: OpenAIMessage = { role: 'user', content: userInputText.trim() };
+        modifiableMessages.push(newUserMessage);
+        userMessageEntryForImages = newUserMessage;
+        userMessageEntryIndex = modifiableMessages.length - 1; // Index in `modifiableMessages`
+        log('debug', 'No existing user message found for image attachment, created a new one.', serverInstance);
     }
 
+    // 3. If we have a user message entry to attach images to:
+    if (userMessageEntryForImages) {
+        let baseTextContent = '';
+        if (typeof userMessageEntryForImages.content === 'string') {
+            baseTextContent = userMessageEntryForImages.content;
+        } else if (Array.isArray(userMessageEntryForImages.content)) {
+            // If content is already an array, find the text part.
+            const textPart = userMessageEntryForImages.content.find(part => part.type === 'text');
+            if (textPart && typeof textPart.text === 'string') {
+                baseTextContent = textPart.text;
+            }
+        }
+
+        const imagesToAttachThisTurn: Array<{ type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }> = [];
+
+        // 4. Attach images from the current user message (if allowed)
+        if (config.allowImageInput && hasCurrentUserImages) {
+            userImageItems!.forEach(imgItem => {
+                const imageDetail = (imgItem.image_url as any).detail;
+                imagesToAttachThisTurn.push({ type: 'image_url', image_url: { url: imgItem.image_url.url, ...(imageDetail && { detail: imageDetail }) } });
+            });
+            log('debug', `Prepared ${userImageItems!.length} images from current user message for attachment.`, serverInstance);
+        }
+
+        // 5. Attach images from the replied message
+        if (hasRepliedImages) {
+            repliedMessageImageUrls!.forEach(url => {
+                if (typeof url === 'string' && url.trim() !== '') {
+                    imagesToAttachThisTurn.push({ type: 'image_url', image_url: { url: url, detail: 'low' } });
+                }
+            });
+            log('debug', `Prepared ${repliedMessageImageUrls!.length} images from replied message for attachment.`, serverInstance);
+        }
+
+        // 6. Convert collected image URLs to Base64 Data URIs and update the user message entry
+        if (imagesToAttachThisTurn.length > 0) {
+            log('debug', `Attempting to convert ${imagesToAttachThisTurn.length} image URLs to Base64 Data URIs.`, serverInstance);
+            const base64ImageObjects = await Promise.all(
+                imagesToAttachThisTurn.map(async (imgObject) => {
+                    const originalUrl = imgObject.image_url.url;
+                    const dataUri = await imageUrlToDataUri(originalUrl, serverInstance.log);
+                    if (dataUri) {
+                        return {
+                            ...imgObject,
+                            image_url: {
+                                ...imgObject.image_url, // Keep original detail if any
+                                url: dataUri
+                            }
+                        };
+                    }
+                    log('warn', `Failed to convert image to Data URI, skipping: ${originalUrl}`, serverInstance);
+                    return null;
+                })
+            );
+
+            const validBase64ImageObjects = base64ImageObjects.filter(
+                (img): img is { type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } } => img !== null
+            );
+
+            if (validBase64ImageObjects.length > 0) {
+                const newContentPayload: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }> = [];
+                if (baseTextContent.trim() || validBase64ImageObjects.length > 0) {
+                    newContentPayload.push({ type: 'text', text: baseTextContent });
+                }
+                newContentPayload.push(...validBase64ImageObjects);
+                
+                userMessageEntryForImages.content = newContentPayload;
+                log('debug', `User message at index ${userMessageEntryIndex} updated with ${validBase64ImageObjects.length} Base64 images. Final text part: "${baseTextContent}"`, serverInstance);
+            } else {
+                // No images successfully converted, content remains baseTextContent
+                userMessageEntryForImages.content = baseTextContent;
+                log('debug', `No images were successfully converted to Base64. User message content remains text only: "${baseTextContent}"`, serverInstance);
+            }
+        } else {
+            // No images were collected to attach, content remains baseTextContent
+            userMessageEntryForImages.content = baseTextContent;
+        }
+    }
+    // --- End Refactored Image Handling ---
+
+    // Filter out messages with empty or invalid content AFTER all modifications
+    let finalMessages = modifiableMessages.filter(m => {
+        if (!m.content) return false;
+        if (typeof m.content === 'string') return m.content.trim() !== '';
+        if (Array.isArray(m.content)) {
+            // For arrays, ensure it's not empty and contains at least one valid part.
+            // A valid part could be text with content or an image_url.
+            if (m.content.length === 0) return false;
+            return m.content.some(part => (part.type === 'text' && typeof part.text === 'string' && part.text.trim() !== '') || part.type === 'image_url');
+        }
+        return false; // Should not happen with OpenAIMessage type
+    });
+    
     if (finalMessages.length === 0) {
         log('warn', `No messages to send to OpenAI after processing for ${config.name} in context ${contextType}:${contextId}`, serverInstance);
         return null;

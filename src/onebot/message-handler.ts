@@ -130,37 +130,16 @@ async function parseOneBotMessage(
                             imageUrl = imageUrl.replace('https://', 'http://');
                             log('trace', `QQ URL 协议替换: ${segment.data.url} -> ${imageUrl}`);
                         }
-                        try {
-                            log('debug', `准备下载图片: ${imageUrl}`);
-                            const response = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 10000 });
-                            const imageBuffer = Buffer.from(response.data);
-                            log('trace', `图片下载成功，大小: ${imageBuffer.length} bytes`);
-                            const sharpInstance = sharp(imageBuffer);
-                            const metadata = await sharpInstance.metadata();
-                            const format = metadata.format;
-                            log('debug', `检测到图片格式: ${format}`);
-                            let dataUri: string | null = null;
-                            if (format && ['png', 'jpeg', 'webp'].includes(format)) {
-                                dataUri = `data:image/${format};base64,${imageBuffer.toString('base64')}`;
-                            } else if (format === 'gif') {
-                                const pngBuffer = await sharpInstance.toFormat('png').toBuffer();
-                                dataUri = `data:image/png;base64,${pngBuffer.toString('base64')}`;
-                            } else {
-                                log('warn', `不支持的图片格式 (${format})，尝试转 PNG`);
-                                try {
-                                    const pngBuffer = await sharpInstance.toFormat('png').toBuffer();
-                                    dataUri = `data:image/png;base64,${pngBuffer.toString('base64')}`;
-                                } catch (e: any) { log('error', `转 PNG 失败: ${e.message}`); }
-                            }
-                            if (dataUri) {
-                                // REMOVED: contentItems.push({ type: 'text', text: imagePlaceholderText }); // 不再添加 [图片N] 文本占位符
-                                contentItems.push({ type: 'image_url', image_url: { url: dataUri } });
-                                log('trace', `已添加图片 ${imageCounter} (仅 Data URI，移除了文本占位符 [图片N])`);
-                                imageCounter++;
-                            }
-                        } catch (error: any) {
-                            log('error', `处理图片 URL ${imageUrl} 出错: ${error.message}`);
-                            contentItems.push({ type: 'text', text: `[图片处理失败:${imageCounter}]` });
+                        // 修改：直接使用图片URL，不再进行Base64转换
+                        if (imageUrl) {
+                            contentItems.push({ type: 'image_url', image_url: { url: imageUrl, detail: 'low' } });
+                            log('trace', `已添加图片 ${imageCounter} (直接使用 URL: ${imageUrl})`);
+                            imageCounter++;
+                        } else {
+                            // 此情况理论上不应发生，因为外层已经有 if (imageUrl) 判断
+                            // 但为保险起见，保留一个处理分支
+                            log('warn', `图片URL在QQ特定处理后变为空 (原始URL: ${segment.data.url})`);
+                            contentItems.push({ type: 'text', text: `[图片URL处理后为空:${imageCounter}]` });
                             imageCounter++;
                         }
                     } else {
@@ -268,6 +247,7 @@ async function handleConfigurationProcessing(
     senderCard: string | undefined, // Actual group card name
     userMessageTimestamp: Date, // <<<< 新增：用户消息的时间戳
     repliedMessageIdParam?: string, // +++ Add repliedMessageId as a parameter +++
+    repliedMessageImageUrls?: string[], // +++ 新增：被回复消息的图片URL数组 +++
     // Optional parameters last
     userName?: string, // Display name (card or nickname) - might be redundant now
     botId?: string // Changed selfId to botId
@@ -607,7 +587,7 @@ async function handleConfigurationProcessing(
             )
             .map(item => ({ // item is now correctly typed as Extract<UserMessageContentItem, { type: 'image_url' }>
                 type: 'image_url' as 'image_url',
-                image_url: { url: item.image_url.url } // No need for 'as' assertion on item.image_url here
+                image_url: { url: item.image_url.url, ...((item.image_url as any).detail && { detail: (item.image_url as any).detail }) }
             }));
 
         let aiResponseContent = await processAndExecuteMainAi(
@@ -621,7 +601,8 @@ async function handleConfigurationProcessing(
             userImageItemsForAI.length > 0 ? userImageItemsForAI : undefined, // NEW: userImageItems
             serverInstance!,            // Fastify instance
             repliedMessageIdParam,      // ID of the message being replied to (optional, replyToMessageId in target)
-            replayValue                 // Use the existing parameter 'replayValue' (replyToContent in target)
+            replayValue,                // Use the existing parameter 'replayValue' (replyToContent in target)
+            repliedMessageImageUrls     // 新增：传递被回复消息的图片URL数组
         );
         // `processAndExecuteMainAi` now handles:
         // - Building a complete VariableContext
@@ -978,35 +959,49 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
 
     // --- Prepare Formatted Replay String for Variable Context ---
     let formattedReplayString = ""; // Default to empty string if not a reply
+    let parsedRepliedImageUrls: string[] = []; // 新增：用于存储从被回复消息中解析出的图片URL
 
     if (repliedMessageId) { // Only proceed if it's actually a reply
         if (serverInstance?.log) {
-            log('debug', `检测到回复消息，被回复的消息 ID: ${repliedMessageId}。尝试获取并格式化其内容。`);
+            log('debug', `检测到回复消息，被回复的消息 ID: ${repliedMessageId}。尝试获取其内容和图片URL。`);
             const repliedMessageData = await getMessageByMessageId(repliedMessageId, serverInstance.log);
 
             if (repliedMessageData) { // Successfully fetched replied message data
+                // 处理文本内容
                 let repliedTextContent = extractPlainTextFromRepliedMessage(repliedMessageData.rawMessage);
-                
                 if (!repliedTextContent.trim()) {
-                    repliedTextContent = "空"; // Content is empty, display "空"
+                    repliedTextContent = "空";
                 }
-
                 const ts = new Date(repliedMessageData.timestamp);
                 const pad = (num: number) => String(num).padStart(2, '0');
                 const dateStr = `${ts.getFullYear()}-${pad(ts.getMonth() + 1)}-${pad(ts.getDate())}`;
                 const timeStr = `${pad(ts.getHours())}:${pad(ts.getMinutes())}:${pad(ts.getSeconds())}`;
-
                 formattedReplayString = `(user_id: ${repliedMessageData.userId}, user_name: ${repliedMessageData.userName || '未知用户'}, date: ${dateStr}, time: ${timeStr}): ${repliedTextContent}`;
-                log('trace', `格式化的回复内容 (formattedReplayString): "${formattedReplayString.substring(0, 200)}..."`);
+                log('trace', `格式化的回复文本内容 (formattedReplayString): "${formattedReplayString.substring(0, 200)}..."`);
+
+                // 处理图片URL
+                if (repliedMessageData.imageUrls) { // imageUrls 是 String? (JSON 字符串或 null)
+                    try {
+                        const parsed = JSON.parse(repliedMessageData.imageUrls);
+                        if (Array.isArray(parsed) && parsed.every(item => typeof item === 'string')) {
+                            parsedRepliedImageUrls = parsed;
+                            log('trace', `从被回复消息中成功解析 ${parsedRepliedImageUrls.length} 个图片URL。`);
+                        } else {
+                            log('warn', `解析被回复消息的 imageUrls 失败 (非数组或元素非字符串): ${repliedMessageData.imageUrls}`);
+                        }
+                    } catch (e) {
+                        log('error', `JSON 解析被回复消息的 imageUrls 失败: ${repliedMessageData.imageUrls}`, e);
+                    }
+                } else {
+                    log('trace', '被回复消息中没有 imageUrls 字段或为 null。');
+                }
             } else {
-                // repliedMessageId exists, but no data found in DB for it
-                log('debug', `未能在消息历史中找到被回复的消息 (ID: ${repliedMessageId})，{{replay}} 变量将设为 "空"。`);
-                formattedReplayString = "空"; // Set the entire variable to "空"
+                log('debug', `未能在消息历史中找到被回复的消息 (ID: ${repliedMessageId})，{{replay}} 变量将设为 "空"，图片URL为空数组。`);
+                formattedReplayString = "空";
             }
         } else {
-            // repliedMessageId exists, but logger is not available to attempt fetching
-            log('warn', `RepliedMessageId (${repliedMessageId}) 存在但 logger 不可用。{{replay}} 变量将设为 "空".`);
-            formattedReplayString = "空"; // Set the entire variable to "空"
+            log('warn', `RepliedMessageId (${repliedMessageId}) 存在但 logger 不可用。{{replay}} 变量将设为 "空"，图片URL为空数组。`);
+            formattedReplayString = "空";
         }
     }
     // If repliedMessageId was null from the start (not a reply message), formattedReplayString remains ""
@@ -1080,6 +1075,13 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
                 userMessageContent
             );
             
+            // 从 userMessageContent 中提取图片 URL 数组用于存储
+            const imageUrlsToStore: string[] = userMessageContent
+                .filter((item): item is Extract<UserMessageContentItem, { type: 'image_url' }> =>
+                    item.type === 'image_url' && typeof item.image_url?.url === 'string'
+                )
+                .map(item => item.image_url.url);
+
             await logMessage({
                 contextType,
                 contextId,
@@ -1088,8 +1090,9 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
                 botName: undefined, // 用户消息没有botName
                 messageId: event.message_id.toString(),
                 rawMessage: processedMessageContent as any,
+                imageUrls: imageUrlsToStore.length > 0 ? imageUrlsToStore : undefined, // 如果为空数组则传递 undefined
             }, timestamp, serverInstance.log); // timestamp is userMessageTimestamp
-            log('trace', `用户原始消息已存入消息历史 [${contextType}:${contextId}, 用户:${userId}] (模式: ${configMode})`);
+            log('trace', `用户原始消息已存入消息历史 [${contextType}:${contextId}, 用户:${userId}] (模式: ${configMode}, 图片数: ${imageUrlsToStore.length})`);
 
             // --- Quantitative Trigger Counting ---
             // This must happen AFTER the message is logged to MessageHistory,
@@ -1178,10 +1181,11 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
                 userNicknameForContext, // param 17: Actual nickname
                 userCardForContext,     // param 18: Actual group card name
                 timestamp, // <<<< 传递 userMessageTimestamp
-                repliedMessageId === null ? undefined : repliedMessageId, // param 19: Convert null to undefined
+                repliedMessageId === null ? undefined : repliedMessageId, // param for repliedMessageIdParam
+                parsedRepliedImageUrls.length > 0 ? parsedRepliedImageUrls : undefined, // param for repliedMessageImageUrls
                 // Optional params at the end
-                userName, // param 20: Display name (card or nickname)
-                botId ?? undefined // param 21: Changed selfId to botId, ensure undefined if null
+                userName,
+                botId ?? undefined
             );
         } else {
             log('info', `未找到适用伪装 for ${contextType}:${contextId}`);
@@ -1216,10 +1220,11 @@ async function handleMessageEvent(event: OneBotMessageEvent) {
                 userNicknameForContext, // param 17: Actual nickname
                 userCardForContext,     // param 18: Actual group card name
                 timestamp, // <<<< 传递 userMessageTimestamp
-                repliedMessageId === null ? undefined : repliedMessageId, // param 19: Convert null to undefined
+                repliedMessageId === null ? undefined : repliedMessageId, // param for repliedMessageIdParam
+                parsedRepliedImageUrls.length > 0 ? parsedRepliedImageUrls : undefined, // param for repliedMessageImageUrls
                 // Optional params at the end
-                userName, // param 20: Display name (card or nickname)
-                botId ?? undefined // param 21: Changed selfId to botId, ensure undefined if null
+                userName,
+                botId ?? undefined
             );
         } else {
             log('info', `未找到适用预设 for ${contextType}:${contextId}`);

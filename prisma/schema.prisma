@@ -198,6 +198,7 @@ model MessageHistory {
   messageId   String      @unique // 原始 QQ 消息 ID (通常是数字，但用 String 更安全) - 添加 @unique
   rawMessage  Json        // 存储原始 OneBot 消息段数组 (JSON 格式)
   timestamp   DateTime    // 消息时间戳 (移除 @default(now()))
+  imageUrls   String?    // 新增字段：存储图片 URL 数组 (作为 JSON 字符串)
 
   @@index([contextType, contextId, timestamp]) // 为查询和清理日志添加索引
  }

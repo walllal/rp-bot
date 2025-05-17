@@ -14,6 +14,7 @@ interface LogMessageData {
     botName?: string | null; // 添加可选的 botName
     messageId: string;
     rawMessage: Prisma.InputJsonValue; // Expecting JSON compatible value (e.g., array from OneBot)
+    imageUrls?: string[]; // 新增：可选的图片 URL 数组
 }
 
 /**
@@ -38,6 +39,7 @@ export async function logMessage(
                 messageId: data.messageId,
                 rawMessage: data.rawMessage,
                 timestamp: timestamp, // 使用传入的时间戳
+                imageUrls: data.imageUrls && data.imageUrls.length > 0 ? JSON.stringify(data.imageUrls) : null,
             },
         });
         // 在日志中也记录时间戳，方便调试

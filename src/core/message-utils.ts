@@ -125,7 +125,10 @@ export function extractPlainTextFromRepliedMessage(rawMessage: any): string {
                         break;
                     case 'at':
                         break;
-                    case 'image':
+                    case 'image_url': // 处理通过 URL 存储的图片
+                        parts.push('[图片]');
+                        break;
+                    case 'image': // 保留对原始 image 类型的处理
                         parts.push('[图片]');
                         break;
                     case 'face':
