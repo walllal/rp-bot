@@ -247,11 +247,10 @@ export async function processAndExecuteMainAi(
 
     // 2. If no suitable existing user message, and there's text or any images to send, create a new one.
     if (!userMessageEntryForImages && (userInputText.trim() || (config.allowImageInput && hasCurrentUserImages) || hasRepliedImages)) {
-        const newUserMessage: OpenAIMessage = { role: 'user', content: userInputText.trim() };
-        modifiableMessages.push(newUserMessage);
-        userMessageEntryForImages = newUserMessage;
-        userMessageEntryIndex = modifiableMessages.length - 1; // Index in `modifiableMessages`
-        log('debug', 'No existing user message found for image attachment, created a new one.', serverInstance);
+        // Intentionally not creating a new user message here.
+        // User input and images will only be processed if a user message entry
+        // was found or created by the preset logic.
+        log('debug', 'Condition met to potentially create a new user message for image attachment, but skipping as per new logic.', serverInstance);
     }
 
     // 3. If we have a user message entry to attach images to:
