@@ -681,48 +681,50 @@ async function handleConfigurationProcessing(
 
                                     const sendResponse = await sendOneBotAction({ action: actionType, params: actionParams });
                                     const operationTimestamp = new Date(); // 为此操作获取当前时间戳
-                                    log('info', `[高级-${configSource}] 发送${event.message_type === 'private' ? '私聊' : '群聊'}消息 [${event.message_type === 'private' ? `人:${userId}` : `群:${contextId}`}]: ${JSON.stringify(operation.segments)}`);
-                                    
-                                    const messageIdForDb = sendResponse.data?.message_id ? String(sendResponse.data.message_id) : `bot_adv_msg_${configSource}_${Date.now()}_${i}`;
 
-                                    if (serverInstance?.log && botId) {
-                                        // 分条记录到 MessageHistory
-                                        const effectiveBotUserIdForAdvMsg = botId || config.botName?.trim() || 'BOT_INTERNAL_ID';
-                                        await logMessage({
-                                            contextType, contextId, userId: effectiveBotUserIdForAdvMsg,
-                                            userName: config.botName || '', botName: config.botName || '',
-                                            messageId: messageIdForDb,
-                                            rawMessage: convertOneBotSegmentsToUserContentItems(operation.segments),
-                                        }, operationTimestamp, serverInstance.log);
-                                        log('trace', `[高级-${configSource}] 消息操作已存入消息历史 (ID: ${messageIdForDb})`);
+                                    if (sendResponse && sendResponse.status === 'ok' && sendResponse.retcode === 0) {
+                                        log('info', `[高级-${configSource}] (操作 ${i + 1}/${operations.length}) 发送成功 for ${contextType}:${contextId} (User:${userId}, Config:${config.name}, BotID:${botId}). Segments: ${JSON.stringify(operation.segments)}`);
+                                        const messageIdForDb = sendResponse.data?.message_id ? String(sendResponse.data.message_id) : `bot_adv_msg_${configSource}_${Date.now()}_${i}`;
 
-                                        // 分条记录到 ChatHistory
-                                        // Include text from 'text' segments and convert 'at' segments to [@ID]
-                                        const chatContent = operation.segments
-                                            .map(seg => {
-                                                if (seg.type === 'text' && seg.data.text) {
-                                                    return seg.data.text.trim();
-                                                } else if (seg.type === 'at' && seg.data.qq) {
-                                                    return `[@${seg.data.qq}]`; // Convert 'at' segment to [@ID] text
-                                                }
-                                                return ''; // Ignore other segment types for chat history text
-                                            })
-                                            .filter(text => text) // Remove empty strings resulting from ignored segments
-                                            .join(' ')
-                                            .trim();
-                                        if (chatContent) {
-                                            const chatHistoryOpId = `bot_adv_chat_msg_${configSource}_${Date.now()}_${i}`;
-                                            await addHistoryItem(
-                                                contextType, contextId, botId, DbRole.ASSISTANT,
-                                                chatContent, operationTimestamp, chatHistoryOpId,
-                                                config.botName || '', config.botName || ''
-                                            );
-                                            log('trace', `[高级-${configSource}] 消息操作文本已存入对话历史 (ID: ${chatHistoryOpId})`);
+                                        if (serverInstance?.log && botId) {
+                                            // 分条记录到 MessageHistory
+                                            const effectiveBotUserIdForAdvMsg = botId || config.botName?.trim() || 'BOT_INTERNAL_ID';
+                                            await logMessage({
+                                                contextType, contextId, userId: effectiveBotUserIdForAdvMsg,
+                                                userName: config.botName || '', botName: config.botName || '',
+                                                messageId: messageIdForDb,
+                                                rawMessage: convertOneBotSegmentsToUserContentItems(operation.segments),
+                                            }, operationTimestamp, serverInstance.log);
+                                            log('trace', `[高级-${configSource}] 消息操作已存入消息历史 (ID: ${messageIdForDb})`);
+
+                                            // 分条记录到 ChatHistory
+                                            const chatContent = operation.segments
+                                                .map(seg => {
+                                                    if (seg.type === 'text' && seg.data.text) {
+                                                        return seg.data.text.trim();
+                                                    } else if (seg.type === 'at' && seg.data.qq) {
+                                                        return `[@${seg.data.qq}]`;
+                                                    }
+                                                    return '';
+                                                })
+                                                .filter(text => text)
+                                                .join(' ')
+                                                .trim();
+                                            if (chatContent) {
+                                                const chatHistoryOpId = `bot_adv_chat_msg_${configSource}_${Date.now()}_${i}`;
+                                                await addHistoryItem(
+                                                    contextType, contextId, botId, DbRole.ASSISTANT,
+                                                    chatContent, operationTimestamp, chatHistoryOpId,
+                                                    config.botName || '', config.botName || ''
+                                                );
+                                                log('trace', `[高级-${configSource}] 消息操作文本已存入对话历史 (ID: ${chatHistoryOpId})`);
+                                            }
                                         }
+                                        allTextSegments = allTextSegments.concat(operation.segments);
+                                    } else {
+                                        log('warn', `[高级-${configSource}] OneBot发送操作失败 (操作 ${i + 1}/${operations.length}) for ${contextType}:${contextId} (User:${userId}, Config:${config.name}, BotID:${botId}). Action: ${actionType}, Params: ${JSON.stringify(actionParams)}. OneBot Response: ${JSON.stringify(sendResponse)}`);
+                                        throw new Error(`OneBot action failed in advanced mode operation ${i + 1} for config ${config.name}. Response: ${JSON.stringify(sendResponse)}`);
                                     }
-                                    
-                                    // 收集所有消息段 (如果 allTextSegments 仍有其他用途)
-                                    allTextSegments = allTextSegments.concat(operation.segments);
                                 } else {
                                     log('warn', `[高级-${configSource}] 解析到一个空的 send_message 操作，已跳过`);
                                 }
@@ -830,24 +832,29 @@ async function handleConfigurationProcessing(
                         const actionType = event.message_type === 'private' ? 'send_private_msg' : 'send_group_msg';
 
                         const sendResponse = await sendOneBotAction({ action: actionType, params: actionParams });
-                        log('info', `[标准-${configSource}] 发送${event.message_type === 'private' ? '私聊' : '群聊'}消息 [${event.message_type === 'private' ? `人:${userId}` : `群:${contextId}`}]: ${aiResponseContent}`);
-                        
-                        actualStandardMessageId = sendResponse.data?.message_id ? String(sendResponse.data.message_id) : null;
- 
-                        if (actualStandardMessageId && serverInstance?.log && botId !== undefined) { // Ensure botId is checked for presence if used
-                            const effectiveBotUserIdForStdMsg = botId || config.botName?.trim() || 'BOT_INTERNAL_ID';
-                            await logMessage({
-                                contextType, contextId, userId: effectiveBotUserIdForStdMsg,
-                                userName: config.botName || '', botName: config.botName || '',
-                                messageId: actualStandardMessageId, // Use actual message_id
-                                rawMessage: [{ type: 'text', text: aiResponseContent }] as any,
-                            }, new Date(), serverInstance.log); // 使用当前本地时间
-                            log('trace', `[标准-${configSource}] ${event.message_type === 'private' ? '私聊' : '群聊'}文本消息已存入消息历史 (真实ID: ${actualStandardMessageId})`);
-                            standardMessageLoggedToHistory = true; // Mark as logged
-                        } else if (serverInstance?.log && botId) { // Changed selfId to botId
-                            log('warn', `[标准-${configSource}] 发送${event.message_type === 'private' ? '私聊' : '群聊'}文本消息成功但未能获取真实 message_id，或 logger/botId 不可用。`);
-                            // Fallback to internal ID for ChatHistory if needed, but MessageHistory won't be accurate for replies
-                            actualStandardMessageId = `bot_text_${configSource}_fallback_${Date.now()}`;
+
+                        if (sendResponse && sendResponse.status === 'ok' && sendResponse.retcode === 0) {
+                            log('info', `[标准-${configSource}] 发送成功 for ${contextType}:${contextId} (User:${userId}, Config:${config.name}, BotID:${botId}). Content: ${aiResponseContent.substring(0,100)}...`);
+                            actualStandardMessageId = sendResponse.data?.message_id ? String(sendResponse.data.message_id) : null;
+
+                            if (actualStandardMessageId && serverInstance?.log && botId !== undefined) {
+                                const effectiveBotUserIdForStdMsg = botId || config.botName?.trim() || 'BOT_INTERNAL_ID';
+                                await logMessage({
+                                    contextType, contextId, userId: effectiveBotUserIdForStdMsg,
+                                    userName: config.botName || '', botName: config.botName || '',
+                                    messageId: actualStandardMessageId,
+                                    rawMessage: [{ type: 'text', text: aiResponseContent }] as any,
+                                }, new Date(), serverInstance.log);
+                                log('trace', `[标准-${configSource}] ${event.message_type === 'private' ? '私聊' : '群聊'}文本消息已存入消息历史 (真实ID: ${actualStandardMessageId})`);
+                                standardMessageLoggedToHistory = true;
+                            } else if (serverInstance?.log && botId) { // This condition implies actualStandardMessageId was null or botId was undefined (though caught by outer if)
+                                log('warn', `[标准-${configSource}] 发送${event.message_type === 'private' ? '私聊' : '群聊'}文本消息成功但未能获取真实 message_id (or logger/botId unavailable) for config ${config.name}. OneBot Response: ${JSON.stringify(sendResponse)}`);
+                                actualStandardMessageId = `bot_text_${configSource}_fallback_${Date.now()}`; // Fallback for ChatHistory
+                            }
+                        } else {
+                            log('warn', `[标准-${configSource}] OneBot发送操作失败 for ${contextType}:${contextId} (User:${userId}, Config:${config.name}, BotID:${botId}). Action: ${actionType}, Params: ${JSON.stringify(actionParams)}. OneBot Response: ${JSON.stringify(sendResponse)}`);
+                            actualStandardMessageId = null; // Ensure no history is logged with a bad ID
+                            throw new Error(`OneBot action failed in standard mode for config ${config.name}. Response: ${JSON.stringify(sendResponse)}`);
                         }
                     }
                 }
@@ -873,8 +880,24 @@ async function handleConfigurationProcessing(
                     await cleanupOldMessageHistory(contextType, contextId, config.messageHistoryLimit || config.chatHistoryLimit, serverInstance.log);
                 }
 
-            } catch (sendError) {
-                log('error', `发送回复或保存 AI 历史时出错 (${configSource}: ${config.name}):`, sendError);
+            } catch (sendError: any) {
+                const errorContext = {
+                    configSource,
+                    configName: config.name,
+                    configId: config.id,
+                    contextType,
+                    contextId,
+                    userId,
+                    botId,
+                    mode: config.mode,
+                };
+                // Check if sendError is one of our custom thrown errors
+                if (sendError && typeof sendError === 'object' && sendError.message && sendError.message.startsWith('OneBot action failed')) {
+                    log('error', `发送OneBot Action时出错 (${configSource}: ${config.name}). Error: ${sendError.message}`, { context: errorContext });
+                } else {
+                    // For other errors (network, DB issues, unexpected exceptions)
+                    log('error', `处理AI响应或后续操作时发生意外错误 (${configSource}: ${config.name}). Error: ${sendError instanceof Error ? sendError.message : String(sendError)}`, { context: errorContext, stack: sendError instanceof Error ? sendError.stack : undefined, originalErrorDetails: JSON.stringify(sendError, Object.getOwnPropertyNames(sendError)) });
+                }
             }
         } else {
             log('error', `未能从 AI 获取有效回复 (${configSource}: ${config.name})`);

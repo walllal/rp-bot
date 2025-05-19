@@ -235,8 +235,15 @@ function parsePreContent(preText: string, segments: OneBotMessageSegment[]): voi
         if (tagType === 'at') {
             const userId = content.trim();
             if (userId) {
-                segments.push({ type: 'at', data: { qq: userId } });
-                log('trace', '解析到<pre>内的@标签:', userId);
+                const isValidQq = /^\d{5,11}$/.test(userId); // 5-11位数字作为有效QQ号的简单校验
+                if (isValidQq) {
+                    segments.push({ type: 'at', data: { qq: userId } });
+                    log('trace', '解析到<pre>内的有效@标签:', userId);
+                } else {
+                    // 无效的QQ号，不添加任何消息段，相当于移除了这个<at>标签。
+                    // 标签前后的文本会由外层逻辑正常处理。
+                    log('warn', `解析到<pre>内的无效@目标 "${userId}"，该<at>标签已被忽略处理。`);
+                }
             }
         } else if (tagType === 'image') {
             const imageUrl = content.trim();
