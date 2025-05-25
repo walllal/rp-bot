@@ -82,7 +82,8 @@ export async function addHistoryItem(
     timestamp: Date, // 添加必需的 timestamp 参数
     messageId?: string,
     userName?: string | null, // Add userName
-    botName?: string | null // Add botName
+    botName?: string | null, // Add botName
+imageUrls?: string[] | null// 新增：图片 URL 数组
 ): Promise<void> {
     try {
         await prisma.chatHistory.create({
@@ -95,6 +96,7 @@ export async function addHistoryItem(
                 botName, // Save botName
                 role,
                 content,
+imageUrls: imageUrls ? JSON.stringify(imageUrls) : null,
                 messageId,
             },
         });
@@ -134,6 +136,7 @@ export async function getHistoryItems(
                 botName: true, // Include botName
                 messageId: true,
                 role: true,
+imageUrls: true, // Include imageUrls
                 content: true,
                 timestamp: true
             },

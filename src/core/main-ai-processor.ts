@@ -1,15 +1,14 @@
-import axios from 'axios';
-import { Buffer } from 'buffer';
-import sharp from 'sharp';
 import { Preset, DisguisePreset, ContextType as DbContextType, Role as DbRole } from '@prisma/client';
 import { FastifyInstance } from 'fastify';
 import { OpenAIMessage, VariableContext, PresetContent, PresetItemSchema } from './types';
-import { substituteVariables } from './preset-processor';
+import { substituteVariables, processPreset } from './preset-processor'; // +++ Import processPreset
 import { callOpenAI } from './openai-client';
+import { getHistoryItems } from '../db/history'; // +++ Import getHistoryItems
 // import { getBotConfig } from '../onebot/connection'; // --- Removed: getBotConfig no longer returns selfId ---
 import { OpenAIRole } from './types'; // +++ Import OpenAIRole
 import { processAtMentionsInOpenAIMessages } from './message-utils'; // 导入处理 @ 的函数
 import { getAppSettings } from '../db/configStore'; // +++ Import getAppSettings +++
+import { convertGifToJpegBase64 } from './image-utils'; // +++ Import from image-utils +++
 
 // Helper for logging within this module, similar to trigger-scheduler
 function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: string, serverInstance?: FastifyInstance, data?: any) {
@@ -29,73 +28,7 @@ function log(level: 'info' | 'warn' | 'error' | 'debug' | 'trace', message: stri
 }
 
 
-// Helper function to download an image URL and convert it to a Base64 Data URI
-async function imageUrlToDataUri(
-    imageUrl: string,
-    logger: FastifyInstance['log'] | typeof console
-): Promise<string | null> {
-    try {
-        const currentLogger = (typeof (logger as any).trace === 'function') ? logger : console;
-        (currentLogger as any).trace(`[imageUrlToDataUri] Downloading image from URL: ${imageUrl}`);
-        
-        const response = await axios.get(imageUrl, {
-            responseType: 'arraybuffer',
-            timeout: 15000 // 15 seconds timeout for image download
-        });
-
-        if (response.status !== 200) {
-            (currentLogger as any).warn(`[imageUrlToDataUri] Failed to download image from ${imageUrl}. Status: ${response.status}`);
-            return null;
-        }
-
-        const downloadedImageData = response.data as ArrayBuffer;
-        let imageBufferForBase64 = Buffer.from(downloadedImageData); // Initial buffer from downloaded data
-        
-        let finalMimeType = response.headers['content-type']; // Get MIME type from headers first
-
-        // If header MIME type is missing or not an image type, try to infer from extension
-        if (!finalMimeType || !finalMimeType.startsWith('image/')) {
-            const extension = imageUrl.substring(imageUrl.lastIndexOf('.') + 1).toLowerCase();
-            const extToMime: { [key: string]: string } = {
-                'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
-                'gif': 'image/gif', 'webp': 'image/webp',
-            };
-            const inferredMimeType = extToMime[extension];
-            if (inferredMimeType) {
-                finalMimeType = inferredMimeType;
-                (currentLogger as any).trace(`[imageUrlToDataUri] Inferred MIME type '${finalMimeType}' from extension for ${imageUrl}.`);
-            } else {
-                (currentLogger as any).warn(`[imageUrlToDataUri] Could not determine a valid image MIME type for ${imageUrl} from headers or extension '${extension}'. Using 'application/octet-stream'.`);
-                finalMimeType = 'application/octet-stream'; // Fallback
-            }
-        }
-        
-        // If the determined MIME type is GIF, convert to JPEG
-        if (finalMimeType === 'image/gif') {
-            (currentLogger as any).trace(`[imageUrlToDataUri] Original image is GIF. Attempting to convert to JPEG: ${imageUrl}`);
-            try {
-                imageBufferForBase64 = await sharp(imageBufferForBase64)
-                    .jpeg() // Convert to JPEG
-                    .toBuffer();
-                finalMimeType = 'image/jpeg'; // Update MIME type to JPEG
-                (currentLogger as any).trace(`[imageUrlToDataUri] Successfully converted GIF to JPEG for URL: ${imageUrl}`);
-            } catch (conversionError: any) {
-                (currentLogger as any).error(`[imageUrlToDataUri] Failed to convert GIF to JPEG for ${imageUrl}: ${conversionError.message}`, conversionError.stack?.substring(0, 300));
-                // As per user requirement, if GIF to JPEG conversion fails, we should not proceed with this image.
-                return null;
-            }
-        }
-        
-        const base64String = imageBufferForBase64.toString('base64');
-        (currentLogger as any).trace(`[imageUrlToDataUri] Image processed. Final MIME: ${finalMimeType}, Original URL: ${imageUrl}`);
-        return `data:${finalMimeType};base64,${base64String}`;
-
-    } catch (error: any) {
-        const currentLogger = (typeof (logger as any).error === 'function') ? logger : console;
-        (currentLogger as any).error(`[imageUrlToDataUri] Error processing image URL ${imageUrl}: ${error.message}`, error.stack?.substring(0, 500));
-        return null;
-    }
-}
+// The convertGifToJpegBase64 function has been moved to image-utils.ts
 
 export async function processAndExecuteMainAi(
     config: Preset | DisguisePreset,
@@ -105,7 +38,7 @@ export async function processAndExecuteMainAi(
     senderNickname: string | undefined, // Nickname of the sender
     senderCard: string | undefined, // Group card name of the sender
     userInputText: string, // This is the "trigger message" or user's actual message (text part)
-    userImageItems: Array<{ type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }> | undefined, // Image part
+    userImageItemsArray: Array<{ type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }> | undefined, // Renamed for clarity
     serverInstance: FastifyInstance,
     // Optional: if the trigger provides a specific messageId to reply to (e.g., for threaded replies later)
     replyToMessageId?: string,
@@ -134,96 +67,45 @@ export async function processAndExecuteMainAi(
     };
 
 
-    const presetLimits = {
-        chatHistoryLimit: config.chatHistoryLimit ?? 10, // Default from schema
-        messageHistoryLimit: config.messageHistoryLimit ?? 10, // Default from schema
-    };
+    // Fetch history items for processPreset
+    const historyFetchLimit = config.chatHistoryLimit ?? 10; // Use chatHistoryLimit from config
+    const historyItems = await getHistoryItems(contextType, contextId, historyFetchLimit);
+    log('trace', `Fetched ${historyItems.length} history items for processPreset. Limit: ${historyFetchLimit}`, serverInstance);
 
-    const messagesForOpenAI: OpenAIMessage[] = [];
-    // Ensure config.content is treated as PresetContent
-    const presetContentSource = (config.content as unknown as PresetContent) || [];
-    
-    // Validate presetContentSource structure if necessary, or assume it's correct
-    // For example, using Zod:
-    // const parseResult = z.array(PresetItemSchema).safeParse(presetContentSource);
-    // if (!parseResult.success) {
-    //     log('error', `Invalid preset content structure for ${config.name}`, serverInstance, parseResult.error);
-    //     return null;
-    // }
-    // const validPresetContent = parseResult.data;
-
-    // Using the source directly, assuming it's valid for now
-    const validPresetContent = presetContentSource;
-
-
-    for (const item of validPresetContent) {
-        if (item.enabled === false) { // Skip disabled items
-            continue;
-        }
-
-        // All items in PresetContent (PresetMessage or VariablePlaceholder with content)
-        // should be processed by substituteVariables if they are not purely structural placeholders.
-        // The key is that `substituteVariables` handles {{user_input}}, {{chat_history}} etc., within a string.
-        // If an item is a VariablePlaceholder like `chat_history` itself, it implies it should be part of a message string.
-        // The current structure of PresetContent (array of messages or placeholders) means we iterate through messages.
-        // If a message's content string contains "{{chat_history}}", substituteVariables will fill it.
-        // If a top-level item in presetContent is a chat_history placeholder, it's a bit ambiguous how it should be rendered
-        // without a surrounding message structure.
-        //
-        // Revised logic:
-        // Iterate through preset items. If it's a message (not a placeholder), process its content.
-        // If it's a placeholder, and that placeholder is 'user_input', we inject the userInputText directly.
-        // Other placeholders like 'chat_history' are expected to be *inside* the content string of a PresetMessage.
-
-        if (item.is_variable_placeholder) {
-            if (item.variable_name === 'user_input') {
-                // This assumes that a top-level 'user_input' placeholder in the preset content
-                // should be directly translated to a user message with the userInputText.
-                // The role is assumed to be 'user'.
-                messagesForOpenAI.push({ role: 'user', content: userInputText });
-            }
-            // Other top-level placeholders (like a raw 'chat_history' item not embedded in a string) are tricky.
-            // `substituteVariables` is designed to work on strings.
-            // For now, we will only process PresetMessage items and direct user_input placeholders.
-            // If a preset has e.g. `[{is_variable_placeholder: true, variable_name: 'chat_history'}]`
-            // this loop won't directly create an OpenAI message from it unless substituteVariables is changed
-            // to return an array of messages for such placeholders.
-            // The current design of substituteVariables expects {{chat_history}} within a string.
-        } else if ('content' in item && typeof item.content === 'string') { // It's a PresetMessage
-            // Here, item.content is the template string that might contain {{user_input}}, {{chat_history}}, etc.
-            // We pass userInputText to substituteVariables via the VariableContext,
-            // and substituteVariables will use it if {{user_input}} is in item.content.
-            // If item.content *is* "{{user_input}}", it will be replaced by userInputText.
-            
-            // We need to provide the original userInputText to substituteVariables if it's meant to replace {{user_input}}
-            // The VariableContext already has `message: userInputText` which substituteVariables can use for {{user_input}}
-            // However, I removed `message` from VariableContext.
-            // Let's adjust substituteVariables or how we pass userInputText.
-            // Easiest: ensure `variableContext.message` is set for `substituteVariables` if `{{user_input}}` is to be processed.
-            // Or, `substituteVariables` could take `userInputText` as a direct parameter.
-
-            // Let's assume `substituteVariables` will use `context.message` for `{{user_input}}`.
-            // So, we need to put `userInputText` into `variableContext.message` temporarily for this call.
-            // const tempContext = { ...variableContext, message: userInputText }; // No longer needed
-
-            const processedContent = await substituteVariables(
-                item.content,
-                variableContext, // Pass context that includes the current user input as 'message'
-                presetLimits
-                // placeholderType and placeholderConfig are for when substituteVariables is called for a specific placeholder's expansion,
-                // not for general template processing.
-            );
-            // Ensure role is valid OpenAIRole
-            const role: OpenAIRole = (item.role && ['system', 'user', 'assistant'].includes(item.role)) ? item.role as OpenAIRole : 'user';
-            messagesForOpenAI.push({ role: role, content: processedContent });
-        }
+    // Construct UserMessageContentItem[] for processPreset
+    const userMessageContentForPreset: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }> = [];
+    if (userInputText.trim()) {
+        userMessageContentForPreset.push({ type: 'text', text: userInputText });
     }
+    if (userImageItemsArray && userImageItemsArray.length > 0) {
+        userMessageContentForPreset.push(...userImageItemsArray);
+    }
+    // If both are empty, add an empty text item so processPreset still processes user_input placeholder if present
+    if (userMessageContentForPreset.length === 0) {
+        userMessageContentForPreset.push({ type: 'text', text: '' });
+    }
+    log('trace', `Constructed userMessageContentForPreset for processPreset: ${JSON.stringify(userMessageContentForPreset).substring(0,300)}...`, serverInstance);
+
+
+    // Call processPreset to get the full list of messages for OpenAI
+    // processPreset will handle system messages, history placeholders, and user input placeholders.
+    const messagesForOpenAI = await processPreset(
+        config,
+        userMessageContentForPreset, // Pass the structured user message
+        historyItems,
+        variableContext // This context already includes `message: userInputText`
+    );
+    log('trace', `Messages from processPreset (before image handling): ${JSON.stringify(messagesForOpenAI).substring(0,500)}...`, serverInstance);
+
 
     // Filter out any messages that ended up with empty content after substitution,
     // or messages that were just placeholders and didn't resolve to content (e.g. an empty system message if {{system_var}} was empty)
-    let modifiableMessages = messagesForOpenAI; // Start with messages from preset
+    let modifiableMessages = messagesForOpenAI;
 
     // --- Refactored Image Handling ---
+    // This section assumes images are to be attached to the *last user message* generated by processPreset.
+    // If processPreset didn't generate a user message (e.g., preset only has system messages),
+    // this image handling logic might need adjustment or might not attach images.
     let userMessageEntryForImages: OpenAIMessage | undefined = undefined;
     let userMessageEntryIndex = -1;
 
@@ -242,15 +124,14 @@ export async function processAndExecuteMainAi(
         }
     }
     
-    const hasCurrentUserImages = !!(userImageItems && userImageItems.length > 0);
+    const hasCurrentUserImages = !!(userImageItemsArray && userImageItemsArray.length > 0);
     const hasRepliedImages = !!(repliedMessageImageUrls && repliedMessageImageUrls.length > 0);
 
     // 2. If no suitable existing user message, and there's text or any images to send, create a new one.
+    //    This block is less relevant now as processPreset should have created the user message if {{user_input}} was present.
+    //    We are looking for the last 'user' role message from processPreset's output.
     if (!userMessageEntryForImages && (userInputText.trim() || (config.allowImageInput && hasCurrentUserImages) || hasRepliedImages)) {
-        // Intentionally not creating a new user message here.
-        // User input and images will only be processed if a user message entry
-        // was found or created by the preset logic.
-        log('debug', 'Condition met to potentially create a new user message for image attachment, but skipping as per new logic.', serverInstance);
+        log('debug', 'No existing user message found from preset to attach images. This might be okay if preset handles user input differently or no user input placeholder exists.', serverInstance);
     }
 
     // 3. If we have a user message entry to attach images to:
@@ -270,11 +151,11 @@ export async function processAndExecuteMainAi(
 
         // 4. Attach images from the current user message (if allowed)
         if (config.allowImageInput && hasCurrentUserImages) {
-            userImageItems!.forEach(imgItem => {
+            userImageItemsArray!.forEach(imgItem => { // Use userImageItemsArray
                 const imageDetail = (imgItem.image_url as any).detail;
                 imagesToAttachThisTurn.push({ type: 'image_url', image_url: { url: imgItem.image_url.url, ...(imageDetail && { detail: imageDetail }) } });
             });
-            log('debug', `Prepared ${userImageItems!.length} images from current user message for attachment.`, serverInstance);
+            log('debug', `Prepared ${userImageItemsArray!.length} images from current user message for attachment.`, serverInstance);
         }
 
         // 5. Attach images from the replied message
@@ -287,47 +168,52 @@ export async function processAndExecuteMainAi(
             log('debug', `Prepared ${repliedMessageImageUrls!.length} images from replied message for attachment.`, serverInstance);
         }
 
-        // 6. Convert collected image URLs to Base64 Data URIs and update the user message entry
-        if (imagesToAttachThisTurn.length > 0) {
-            log('debug', `Attempting to convert ${imagesToAttachThisTurn.length} image URLs to Base64 Data URIs.`, serverInstance);
-            const base64ImageObjects = await Promise.all(
+        // 6. Process collected image URLs (convert GIF to Base64, use direct URL for others) and update the user message entry
+        if (imagesToAttachThisTurn.length > 0 && config.allowImageInput) { // Check allowImageInput from preset
+            log('debug', `Processing ${imagesToAttachThisTurn.length} image URLs based on type (GIF vs non-GIF) and allowImageInput=true.`, serverInstance);
+            const processedImageObjects = await Promise.all(
                 imagesToAttachThisTurn.map(async (imgObject) => {
                     const originalUrl = imgObject.image_url.url;
-                    const dataUri = await imageUrlToDataUri(originalUrl, serverInstance.log);
-                    if (dataUri) {
+                    // Try to convert if it's a GIF
+                    const gifBase64DataUri = await convertGifToJpegBase64(originalUrl, serverInstance.log);
+
+                    if (gifBase64DataUri) { // It was a GIF and successfully converted
                         return {
                             ...imgObject,
-                            image_url: {
-                                ...imgObject.image_url, // Keep original detail if any
-                                url: dataUri
-                            }
+                            image_url: { ...imgObject.image_url, url: gifBase64DataUri }
+                        };
+                    } else { // Not a GIF, or GIF conversion failed; use original URL
+                        log('trace', `Image ${originalUrl} is not a GIF or GIF conversion failed, using direct URL for this image part.`, serverInstance);
+                        return { // Return the original image object (with direct URL)
+                            ...imgObject
                         };
                     }
-                    log('warn', `Failed to convert image to Data URI, skipping: ${originalUrl}`, serverInstance);
-                    return null;
                 })
             );
 
-            const validBase64ImageObjects = base64ImageObjects.filter(
-                (img): img is { type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } } => img !== null
+            // Filter out any nulls that might have occurred if an error happened during mapping
+            const validProcessedImageObjects = processedImageObjects.filter(
+                (img): img is { type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } } => img !== null && img.image_url.url !== null
             );
 
-            if (validBase64ImageObjects.length > 0) {
+            if (validProcessedImageObjects.length > 0) {
                 const newContentPayload: Array<{ type: 'text', text: string } | { type: 'image_url', image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }> = [];
-                if (baseTextContent.trim() || validBase64ImageObjects.length > 0) {
+                // Add text part only if it has content or if there are images to accompany
+                if (baseTextContent.trim() || validProcessedImageObjects.length > 0) {
                     newContentPayload.push({ type: 'text', text: baseTextContent });
                 }
-                newContentPayload.push(...validBase64ImageObjects);
+                newContentPayload.push(...validProcessedImageObjects);
                 
                 userMessageEntryForImages.content = newContentPayload;
-                log('debug', `User message at index ${userMessageEntryIndex} updated with ${validBase64ImageObjects.length} Base64 images. Final text part: "${baseTextContent}"`, serverInstance);
+                log('debug', `User message at index ${userMessageEntryIndex} updated with ${validProcessedImageObjects.length} processed images. Final text part: "${baseTextContent}"`, serverInstance);
             } else {
-                // No images successfully converted, content remains baseTextContent
-                userMessageEntryForImages.content = baseTextContent;
-                log('debug', `No images were successfully converted to Base64. User message content remains text only: "${baseTextContent}"`, serverInstance);
+                userMessageEntryForImages.content = baseTextContent; // Only text if no valid images
+                log('debug', `No valid images processed or attached. User message content remains text only: "${baseTextContent}"`, serverInstance);
             }
-        } else {
-            // No images were collected to attach, content remains baseTextContent
+        } else if (imagesToAttachThisTurn.length > 0 && !config.allowImageInput) {
+            userMessageEntryForImages.content = baseTextContent; // Only text if images not allowed
+            log('debug', `Image input not allowed by preset (allowImageInput=false). User message content remains text only: "${baseTextContent}"`, serverInstance);
+        } else { // No images were collected to attach
             userMessageEntryForImages.content = baseTextContent;
         }
     }

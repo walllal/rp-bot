@@ -1261,6 +1261,26 @@
                                 <input type="text" id="disguise-preset-settings-openai-model" name="openaiModel" required placeholder="gpt-3.5-turbo">
                                 <small>指定要使用的 OpenAI 模型。</small>
                             </label>
+<!-- OpenAI Advanced Params -->
+                            <label for="disguise-preset-settings-openai-max-tokens">最大回复长度 (Max Tokens)
+                                <input type="number" id="disguise-preset-settings-openai-max-tokens" name="openaiMaxTokens" min="1" placeholder="1024">
+                            </label>
+                            <div class="form-group slider-group">
+                                <label for="disguise-preset-settings-openai-temperature">温度 (Temperature): <span id="disguise-preset-settings-openai-temperature-value">1.0</span></label>
+                                <input type="range" id="disguise-preset-settings-openai-temperature" name="openaiTemperature" min="0" max="2" step="0.01" value="1.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-preset-settings-openai-frequency-penalty">频率惩罚 (Frequency Penalty): <span id="disguise-preset-settings-openai-frequency-penalty-value">0.0</span></label>
+                                <input type="range" id="disguise-preset-settings-openai-frequency-penalty" name="openaiFrequencyPenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-preset-settings-openai-presence-penalty">存在惩罚 (Presence Penalty): <span id="disguise-preset-settings-openai-presence-penalty-value">0.0</span></label>
+                                <input type="range" id="disguise-preset-settings-openai-presence-penalty" name="openaiPresencePenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-preset-settings-openai-top-p">Top P: <span id="disguise-preset-settings-openai-top-p-value">1.0</span></label>
+                                <input type="range" id="disguise-preset-settings-openai-top-p" name="openaiTopP" min="0" max="1" step="0.01" value="1.0">
+                            </div>
                         </div>
 
                         <!-- Web Search Settings -->
@@ -1289,6 +1309,26 @@
                                 <input type="text" id="disguise-preset-settings-web-search-model" name="webSearchModel" required placeholder="gemini-2.0-flash">
                                 <small>指定要用于联网搜索的模型</small>
                             </label>
+<!-- Web Search OpenAI Advanced Params -->
+                            <label for="disguise-preset-settings-web-search-openai-max-tokens">联网最大回复长度
+                                <input type="number" id="disguise-preset-settings-web-search-openai-max-tokens" name="webSearchOpenaiMaxTokens" min="1" placeholder="1024">
+                            </label>
+                            <div class="form-group slider-group">
+                                <label for="disguise-preset-settings-web-search-openai-temperature">联网温度: <span id="disguise-preset-settings-web-search-openai-temperature-value">1.0</span></label>
+                                <input type="range" id="disguise-preset-settings-web-search-openai-temperature" name="webSearchOpenaiTemperature" min="0" max="2" step="0.01" value="1.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-preset-settings-web-search-openai-frequency-penalty">联网频率惩罚: <span id="disguise-preset-settings-web-search-openai-frequency-penalty-value">0.0</span></label>
+                                <input type="range" id="disguise-preset-settings-web-search-openai-frequency-penalty" name="webSearchOpenaiFrequencyPenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-preset-settings-web-search-openai-presence-penalty">联网存在惩罚: <span id="disguise-preset-settings-web-search-openai-presence-penalty-value">0.0</span></label>
+                                <input type="range" id="disguise-preset-settings-web-search-openai-presence-penalty" name="webSearchOpenaiPresencePenalty" min="-2" max="2" step="0.01" value="0.0">
+                            </div>
+                            <div class="form-group slider-group">
+                                <label for="disguise-preset-settings-web-search-openai-top-p">联网Top P: <span id="disguise-preset-settings-web-search-openai-top-p-value">1.0</span></label>
+                                <input type="range" id="disguise-preset-settings-web-search-openai-top-p" name="webSearchOpenaiTopP" min="0" max="1" step="0.01" value="1.0">
+                            </div>
                             <label for="disguise-settings-web-search-system-prompt">
                                 联网搜索系统提示词 (可选)
                                 <textarea id="disguise-settings-web-search-system-prompt" name="webSearchSystemPrompt" rows="3" placeholder="例如：你是一个高效的信息检索助手，请根据用户的问题联网搜索并提供简洁的答案。"></textarea>
@@ -1375,8 +1415,8 @@
                                 AI触发 模型名称
                                 <input type="text" id="disguise-settings-ai-trigger-model" name="aiTriggerModel" placeholder="gpt-3.5-turbo">
                                 <small>指定用于AI触发判断的模型。</small>
-                            </label>
-                            <!-- AI Trigger OpenAI Advanced Params -->
+</label>
+<!-- AI Trigger OpenAI Advanced Params -->
                             <label for="disguise-settings-ai-trigger-openai-max-tokens">AI触发最大回复长度
                                 <input type="number" id="disguise-settings-ai-trigger-openai-max-tokens" name="aiTriggerOpenaiMaxTokens" min="1" placeholder="1024">
                             </label>

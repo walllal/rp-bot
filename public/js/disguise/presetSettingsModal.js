@@ -114,8 +114,12 @@ export async function openDisguisePresetSettingsModal(presetId) {
 
     try {
         // 1. Fetch disguise preset data
+        console.log(`[DisguisePresetSettingsModal] Fetching data for disguise preset ID: ${presetId}`);
         const preset = await apiService.getDisguisePreset(presetId); // Use new API method
+        console.log(`[DisguisePresetSettingsModal] Fetched disguise preset data for ID ${presetId}:`, JSON.stringify(preset, null, 2));
+
         if (!preset) {
+             console.error(`[DisguisePresetSettingsModal] Failed to load disguise preset data for ID: ${presetId}. Data is null or undefined.`);
              uiNotifications.showToast('加载伪装设置失败: 未找到伪装', 3000, 'error'); // Updated text
              return;
         }

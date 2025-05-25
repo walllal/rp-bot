@@ -89,6 +89,7 @@ export interface ChatHistoryItem {
   timestamp: Date;
   userId: string; // Add userId
   userName?: string | null; // Add optional userName
+imageUrls?: string[] | null; // 新增：图片 URL 数组 (来自 ChatHistory 表)
   // Add other fields if needed by the processor, e.g., messageId
 }
 
@@ -97,7 +98,12 @@ export interface ChatHistoryItem {
  */
 export type UserMessageContentItem =
   | { type: 'text'; text: string }
-  | { type: 'image_url'; image_url: { url: string; detail?: 'low' | 'high' | 'auto' } }; // 允许可选的 detail
+  | { type: 'image_url'; image_url: ImageURL }; // 使用 ImageURL 类型
+
+export interface ImageURL { // OpenAI API image_url 对象的结构
+  url: string;
+  detail?: 'low' | 'high' | 'auto';
+}
 
 /**
  * 更新 OpenAI 消息结构以支持多模态 content

@@ -127,6 +127,7 @@ export async function getMessageHistory(contextType: DbContextType, contextId: s
             messageId: true,
             rawMessage: true,
             timestamp: true,
+imageUrls: true, // Include imageUrls
         }
     });
 }

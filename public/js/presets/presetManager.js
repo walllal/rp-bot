@@ -324,10 +324,9 @@ export async function initPresetManager() {
     assignmentPresetSelect = document.getElementById('assignment-preset-id'); // Used by updateAssignmentPresetOptions
 
     if (!presetsTableBody || !addPresetBtn || !importPresetsBtn || !assignmentPresetSelect) {
-        console.error("One or more preset manager DOM elements not found!");
+        console.error("[PresetManager] initPresetManager: One or more preset manager DOM elements not found!");
         return;
     }
-
     addPresetBtn.addEventListener('click', () => openPresetEditorForNew());
     presetsTableBody.addEventListener('click', handlePresetsTableClick);
     importPresetsBtn.addEventListener('click', handleImportPresets);

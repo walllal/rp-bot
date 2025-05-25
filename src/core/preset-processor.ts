@@ -8,8 +8,10 @@ import {
    OpenAIMessage,
    ChatHistoryItem,
    OpenAIRole,
-   UserMessageContentItem, // 导入新的类型
+   UserMessageContentItem,
+   ImageURL, // 确保导入 ImageURL 类型
  } from './types';
+import { convertGifToJpegBase64 } from './image-utils'; // +++ Import image processing utility +++
  // Import message history fetching function
  import { getMessageHistory } from '../db/message_history';
  import { getHistoryItems } from '../db/history'; // Import getHistoryItems
@@ -115,7 +117,7 @@ export async function substituteVariables(template: string, context: VariableCon
                                 else if (Array.isArray(rawMsg)) {
                                     messageText = rawMsg.map(segment => {
                                         if (segment.type === 'text') return segment.text || segment.data?.text || '';
-                                        if (segment.type === 'image_url') return '[图片]'; // Handle image_url type
+                                        if (segment.type === 'image_url') return '[图片]';
                                         if (segment.type === 'image') return '[图片]';
                                         if (segment.type === 'face') return `[表情:${segment.data?.id}]`;
                                         if (segment.type === 'at') return `[@${segment.data?.qq}]`;
@@ -483,104 +485,162 @@ export async function substituteVariables(template: string, context: VariableCon
          }
          // --- 结束处理独立的 {{user_input}} 占位符 ---
        } else if (placeholder.variable_name === 'chat_history') {
-         // --- 对话历史注入逻辑 (根据 presetMode 调整) ---
-        // Add logging to inspect received historyItems
-
-        // maxLength now represents message count limit for the placeholder
+        // --- 对话历史注入逻辑 (根据 presetMode 调整) ---
+        console.log(`[processPreset] DEBUG: Entering chat_history processing. Config: ${JSON.stringify(placeholder.config)}, historyItems length: ${historyItems.length}`); // 新增日志
         const maxMessages = placeholder.config?.maxLength ?? 10; // Default to 10 messages
-        
-        // 如果有历史记录，去除最新的一条（可能是当前用户的发言）
-        // 只在有多条记录时去除，避免没有历史记录可显示
         const historyToUse = historyItems.length > 1 ? historyItems.slice(1) : historyItems;
-        
-        // 从历史中获取最后N条消息(不包括当前消息)
-        const relevantHistory = historyToUse.slice(-maxMessages); // Get the last N messages
+        const relevantHistory = historyToUse.slice(-maxMessages);
+        console.log(`[processPreset] DEBUG: chat_history - relevantHistory length: ${relevantHistory.length}`); // 新增日志
 
-        // Use presetMode extracted from applicablePreset
         if (presetMode === 'ADVANCED') {
-            // 高级模式：格式化为详细字符串块
+            console.log('[processPreset] DEBUG: chat_history - ADVANCED mode selected.'); // 新增日志
+            // 高级模式：将每条历史记录格式化为独立的 role 消息
             if (relevantHistory.length > 0) {
-                // 反转历史记录，使最新的消息显示在最下面
+                // 反转历史记录，使最新的消息在最后，符合对话顺序
                 const orderedHistory = [...relevantHistory].reverse();
-                const formattedHistoryBlock = orderedHistory.map(item => {
-                    const date = new Date(item.timestamp);
+                console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - orderedHistory length: ${orderedHistory.length}`); // 新增日志
+                for (const historyItem of orderedHistory) {
+                    // 类型断言，ChatHistoryItem 已经包含了 imageUrls (如果 Prisma Client 正确生成)
+                    const chatItem = historyItem as typeof historyItem & { imageUrls?: string | null };
+                    console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - Processing item (before format): ${JSON.stringify(chatItem).substring(0, 200)}...`);
+
+                    const date = new Date(chatItem.timestamp);
                     const formattedDate = `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}`;
                     const formattedTime = `${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
-                    // Use userName if available, otherwise fallback based on role
-                    const senderName = item.userName || (item.role === 'USER' ? '用户' : '助手');
-                    return `(user_id: ${item.userId}, user_name: ${senderName}, date: ${formattedDate}, time: ${formattedTime}): ${item.content.trim()}`;
-                }).join('\n');
-                // Add as a single system message
-                outputMessages.push({ role: 'system', content: `以下是最近的对话历史记录 (最多 ${maxMessages} 条):\n${formattedHistoryBlock}` }); // Updated log message
+                    
+                    const senderName = chatItem.userName || (chatItem.role === 'USER' ? '用户' : '助手');
+                    const textContent = `(user_id: ${chatItem.userId}, user_name: ${senderName}, date: ${formattedDate}, time: ${formattedTime}): ${chatItem.content.trim()}`;
+                    
+                    const messageContentParts: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: ImageURL }> = [{ type: 'text', text: textContent }];
+                    let processedImageCount = 0;
+
+                    if (applicableConfig.allowImageInput && chatItem.imageUrls) {
+                        try {
+                            const urls: string[] = JSON.parse(chatItem.imageUrls);
+                            if (urls.length > 0) {
+                                console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - Found ${urls.length} image URLs for item ${chatItem.userId}. allowImageInput: ${applicableConfig.allowImageInput}`);
+                                for (const originalUrl of urls) {
+                                    const gifBase64 = await convertGifToJpegBase64(originalUrl, console); // Using console for logger temporarily
+                                    if (gifBase64) {
+                                        messageContentParts.push({ type: 'image_url', image_url: { url: gifBase64 } });
+                                        processedImageCount++;
+                                    } else {
+                                        // Not a GIF or conversion failed, use original URL
+                                        messageContentParts.push({ type: 'image_url', image_url: { url: originalUrl } });
+                                        processedImageCount++;
+                                    }
+                                }
+                            }
+                        } catch (e) {
+                            console.error("[processPreset] DEBUG: chat_history (ADVANCED) - Error parsing or processing imageUrls:", e);
+                        }
+                    }
+                    
+                    const role = chatItem.role.toLowerCase() as OpenAIRole;
+                    if (role === 'user' || role === 'assistant') {
+                        outputMessages.push({ role: role, content: messageContentParts });
+                        console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - Pushed to outputMessages. Role: ${role}, Text: ${textContent.substring(0,50)}..., Images: ${processedImageCount}`);
+                    } else {
+                         console.warn(`[processPreset] chat_history (ADVANCED): Skipping history item with role '${chatItem.role}' for user_id: ${chatItem.userId}`);
+                    }
+                }
+            } else {
+                console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - relevantHistory is empty, no items to process.`); // 新增日志
             }
         } else {
+            console.log('[processPreset] DEBUG: chat_history - STANDARD mode selected.'); // 新增日志
             // 标准模式：注入 role: content 对，保留原始内容中的换行符
-            // 反转历史记录，使最新的消息显示在最后
             const orderedHistory = [...relevantHistory].reverse();
+            console.log(`[processPreset] DEBUG: chat_history (STANDARD) - orderedHistory length: ${orderedHistory.length}`); // 新增日志
             for (const historyItem of orderedHistory) {
                 const role = historyItem.role.toLowerCase() as OpenAIRole;
                 if (role === 'user' || role === 'assistant') {
-                    // 直接使用原始内容，不做任何修改，以保留换行符
                     outputMessages.push({ role: role, content: historyItem.content });
+                    console.log(`[processPreset] DEBUG: chat_history (STANDARD) - Pushed to outputMessages. Role: ${role}, Content: ${historyItem.content.substring(0,100)}...`); // 新增日志
                 }
             }
         }
         // --- 结束对话历史注入 ---
       } else if (placeholder.variable_name === 'message_history') {
-        // --- 消息历史占位符注入逻辑 (保持不变) ---
+        // --- 消息历史占位符注入逻辑 (修改后) ---
+        console.log(`[processPreset] DEBUG: Entering message_history processing. Config: ${JSON.stringify(placeholder.config)}`); // 新增日志
         const limit = placeholder.config?.limit ?? 10; // Default to 10 messages
-        const contextType = variableContext.groupId ? DbContextType.GROUP : DbContextType.PRIVATE;
-        const contextId = variableContext.groupId || variableContext.userId;
+        const contextTypeForMsgHist = variableContext.groupId ? DbContextType.GROUP : DbContextType.PRIVATE;
+        const contextIdForMsgHist = variableContext.groupId || variableContext.userId;
 
-        if (contextId) {
+        if (contextIdForMsgHist) {
             try {
-                const rawHistory = await getMessageHistory(contextType, contextId, limit);
-                if (rawHistory.length > 0) {
-                    // 如果有历史记录，去除最新的一条（可能是当前用户的发言）
-                    // 只在有多条记录时去除，避免没有历史记录可显示
-                    const historyToUse = rawHistory.length > 1 ? rawHistory.slice(1) : rawHistory;
-                    
-                    // Format the raw history to match the detailed format used by the variable
-                    // 不再反转历史记录，因为数据库查询已经是最新在前
-                    // 如果需要最新的消息在最下面，我们需要进行一次反转
-                    const orderedHistory = [...historyToUse].reverse();
-                    const formattedHistory = orderedHistory.map(item => {
+                const rawHistoryItems = await getMessageHistory(contextTypeForMsgHist, contextIdForMsgHist, limit);
+                console.log(`[processPreset] DEBUG: message_history - rawHistoryItems length: ${rawHistoryItems.length}`); // 新增日志
+                if (rawHistoryItems.length > 0) {
+                    const historyToProcess = rawHistoryItems.length > 1 ? rawHistoryItems.slice(1) : rawHistoryItems;
+                    // 反转历史记录，使最新的消息在最后，符合对话顺序
+                    const orderedHistory = [...historyToProcess].reverse();
+                    console.log(`[processPreset] DEBUG: message_history - orderedHistory length: ${orderedHistory.length}`); // 新增日志
+
+                    for (const item of orderedHistory) {
+                        console.log(`[processPreset] DEBUG: message_history - Processing item (before format): ${JSON.stringify(item).substring(0, 200)}...`); // 新增日志
+                        // 类型断言，因为 getMessageHistory 返回的 MessageHistory[] 已经包含了 imageUrls (如果 Prisma Client 正确生成)
+                        // 而且 item 已经是 MessageHistory 类型，其中 imageUrls 是可选的 string | null
+                        const messageItem = item as typeof item & { imageUrls?: string | null };
+
                         let messageText = '[无法解析]';
                         try {
-                            const rawMsg = item.rawMessage as any; // Assume JSON is parsed
+                            const rawMsg = messageItem.rawMessage as any;
                             if (typeof rawMsg === 'string') {
                                 messageText = rawMsg;
                             } else if (Array.isArray(rawMsg)) {
                                 messageText = rawMsg.map(segment => {
-                                    if (segment.type === 'text') return segment.text || segment.data?.text || ''; // Check segment.text first
+                                    if (segment.type === 'text') return segment.text || segment.data?.text || '';
                                     if (segment.type === 'image') return '[图片]';
+                                    if (segment.type === 'image_url') return '[图片]'; // 新增对 image_url 类型的处理
                                     if (segment.type === 'face') return `[表情:${segment.data?.id}]`;
                                     if (segment.type === 'at') return `[@${segment.data?.qq}]`;
                                     if (segment.type === 'reply') return `[回复:${segment.data?.id}]`;
                                     return `[${segment.type}]`;
                                 }).join('');
                             }
-                        } catch (e) { console.error("Error parsing raw message in preset processor:", e); }
+                        } catch (e) { console.error("Error parsing raw message in preset processor (message_history):", e); }
 
-                        // Format date and time
-                        const date = new Date(item.timestamp);
+                        const date = new Date(messageItem.timestamp);
                         const formattedDate = `${date.getFullYear()}-${padZero(date.getMonth() + 1)}-${padZero(date.getDate())}`;
                         const formattedTime = `${padZero(date.getHours())}:${padZero(date.getMinutes())}:${padZero(date.getSeconds())}`;
+                        const userName = messageItem.userName || '未知';
+                        
+                        const textContent = `(user_id: ${messageItem.userId}, user_name: ${userName}, date: ${formattedDate}, time: ${formattedTime}): ${messageText.trim()}`;
+                        const messageContentParts: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: ImageURL }> = [{ type: 'text', text: textContent }];
+                        let processedImageCount = 0;
 
-                        // Get userName, default to '未知' if null/undefined
-                        const userName = (item as any).userName || '未知';
-
-                        // Format the final string in the detailed format
-                        return `(user_id: ${item.userId}, user_name: ${userName}, date: ${formattedDate}, time: ${formattedTime}): ${messageText.trim()}`;
-                    }).join('\n'); // Join messages with newline
-
-                    // Add as a system message
-                    outputMessages.push({ role: 'system', content: `以下是最近的消息历史记录 (最多 ${limit} 条):\n${formattedHistory}` });
+                        if (applicableConfig.allowImageInput && messageItem.imageUrls) {
+                            try {
+                                const urls: string[] = JSON.parse(messageItem.imageUrls);
+                                if (urls.length > 0) {
+                                    console.log(`[processPreset] DEBUG: message_history - Found ${urls.length} image URLs for item ${messageItem.userId}. allowImageInput: ${applicableConfig.allowImageInput}`);
+                                    for (const originalUrl of urls) {
+                                        const gifBase64 = await convertGifToJpegBase64(originalUrl, console); // Using console for logger temporarily
+                                        if (gifBase64) {
+                                            messageContentParts.push({ type: 'image_url', image_url: { url: gifBase64 } });
+                                            processedImageCount++;
+                                        } else {
+                                            messageContentParts.push({ type: 'image_url', image_url: { url: originalUrl } });
+                                            processedImageCount++;
+                                        }
+                                    }
+                                }
+                            } catch (e) {
+                                console.error("[processPreset] DEBUG: message_history - Error parsing or processing imageUrls:", e);
+                            }
+                        }
+                        
+                        const messageRole: OpenAIRole = (variableContext.botId && messageItem.userId === variableContext.botId) ? 'assistant' : 'user';
+                        outputMessages.push({ role: messageRole, content: messageContentParts });
+                        console.log(`[processPreset] DEBUG: message_history - Pushed to outputMessages. Role: ${messageRole}, Text: ${textContent.substring(0,50)}..., Images: ${processedImageCount}`);
+                    }
+                }  else {
+                    console.log(`[processPreset] DEBUG: message_history - rawHistoryItems is empty, no items to process.`); // 新增日志
                 }
             } catch (error) {
-                 console.error(`获取消息历史失败 for ${contextType}:${contextId}:`, error);
-                 // Optionally add an error message to the context?
-                 // outputMessages.push({ role: 'system', content: '[获取消息历史失败]' });
+                 console.error(`[processPreset] DEBUG: message_history - Error fetching/processing:`, error); // 修改日志级别
             }
         }
         // --- 结束消息历史占位符注入 ---
@@ -628,4 +688,3 @@ export async function substituteVariables(template: string, context: VariableCon
 
   return finalMessages;
 }
-

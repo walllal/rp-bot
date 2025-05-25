@@ -526,6 +526,13 @@ async function handleConfigurationProcessing(
             );
  
             if (processedUserTextForHistory.trim()) {
+                const userImageUrlsForHistory: string[] = originalUserMessageContent
+                    .filter((item): item is Extract<UserMessageContentItem, { type: 'image_url' }> =>
+                        item.type === 'image_url' && typeof item.image_url?.url === 'string'
+                    )
+                    .map(item => item.image_url.url);
+                log('trace', `为用户消息提取到 ${userImageUrlsForHistory.length} 个图片URL用于对话历史记录: ${JSON.stringify(userImageUrlsForHistory)}`);
+
                 await addHistoryItem(
                     contextType,
                     contextId,
@@ -535,7 +542,8 @@ async function handleConfigurationProcessing(
                     variableContext.timestamp, // Use timestamp from variableContext (derived from event.time)
                     event.message_id.toString(),
                     userName,
-                    undefined // botName for user message is undefined
+                    undefined, // botName for user message is undefined
+                    userImageUrlsForHistory.length > 0 ? userImageUrlsForHistory : undefined // Pass the image URLs
                 );
                 log('trace', `用户消息 (处理后) 已存入对话历史 (${configSource}: ${config.name})`);
                 // Cleanup ChatHistory based on config limits
@@ -693,7 +701,7 @@ async function handleConfigurationProcessing(
                                                 contextType, contextId, userId: effectiveBotUserIdForAdvMsg,
                                                 userName: config.botName || '', botName: config.botName || '',
                                                 messageId: messageIdForDb,
-                                                rawMessage: convertOneBotSegmentsToUserContentItems(operation.segments),
+                                                rawMessage: convertOneBotSegmentsToUserContentItems(operation.segments) as any, // Type assertion
                                             }, operationTimestamp, serverInstance.log);
                                             log('trace', `[高级-${configSource}] 消息操作已存入消息历史 (ID: ${messageIdForDb})`);
 
@@ -710,14 +718,23 @@ async function handleConfigurationProcessing(
                                                 .filter(text => text)
                                                 .join(' ')
                                                 .trim();
-                                            if (chatContent) {
+                                            
+                                            // Extract image URLs from the operation's segments for ChatHistory
+                                            const imageUrlsForAdvHistory: string[] = operation.segments
+                                                .filter(seg => seg.type === 'image' && seg.data?.url)
+                                                .map(seg => seg.data.url as string);
+                                            log('trace', `为高级模式消息操作提取到 ${imageUrlsForAdvHistory.length} 个图片URL用于对话历史记录: ${JSON.stringify(imageUrlsForAdvHistory)}`);
+
+                                            if (chatContent || imageUrlsForAdvHistory.length > 0) { // Record if there's text OR images
                                                 const chatHistoryOpId = `bot_adv_chat_msg_${configSource}_${Date.now()}_${i}`;
                                                 await addHistoryItem(
                                                     contextType, contextId, botId, DbRole.ASSISTANT,
-                                                    chatContent, operationTimestamp, chatHistoryOpId,
-                                                    config.botName || '', config.botName || ''
+                                                    chatContent, // Text content
+                                                    operationTimestamp, chatHistoryOpId,
+                                                    config.botName || '', config.botName || '',
+                                                    imageUrlsForAdvHistory.length > 0 ? imageUrlsForAdvHistory : undefined // Image URLs
                                                 );
-                                                log('trace', `[高级-${configSource}] 消息操作文本已存入对话历史 (ID: ${chatHistoryOpId})`);
+                                                log('trace', `[高级-${configSource}] 消息操作 (文本和/或图片) 已存入对话历史 (ID: ${chatHistoryOpId})`);
                                             }
                                         }
                                         allTextSegments = allTextSegments.concat(operation.segments);

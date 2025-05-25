@@ -128,6 +128,7 @@ model ChatHistory {
   botName     String?     // 当时生效的机器人名称 (可选)
   role        Role        // 角色 (用户, 助手)
   content     String      // 消息内容
+imageUrls   String?     // 新增字段：存储图片 URL 数组 (作为 JSON 字符串)
   timestamp   DateTime    // 消息时间戳 (移除 @default(now()))
 
   @@index([contextType, contextId, timestamp]) // 为查询历史记录添加索引
