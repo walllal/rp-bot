@@ -536,25 +536,31 @@ export async function substituteVariables(template: string, context: VariableCon
                         }
                     }
                     
-                    const role = chatItem.role.toLowerCase() as OpenAIRole;
-                    if (role === 'user' || role === 'assistant') {
+                    let role = chatItem.role.toLowerCase() as OpenAIRole;
+                    // Apply role change if mode is ADVANCED
+                    if (applicableConfig.mode === 'ADVANCED' && (role === 'user' || role === 'assistant')) {
+                        role = 'system';
+                        console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - Role for item ${chatItem.userId} (original: ${chatItem.role}) changed to 'system'.`);
+                    }
+
+                    if (role === 'user' || role === 'assistant' || role === 'system') { // Ensure role is valid before pushing
                         outputMessages.push({ role: role, content: messageContentParts });
                         console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - Pushed to outputMessages. Role: ${role}, Text: ${textContent.substring(0,50)}..., Images: ${processedImageCount}`);
                     } else {
-                         console.warn(`[processPreset] chat_history (ADVANCED): Skipping history item with role '${chatItem.role}' for user_id: ${chatItem.userId}`);
+                         console.warn(`[processPreset] chat_history (ADVANCED): Skipping history item with role '${chatItem.role}' (after potential modification) for user_id: ${chatItem.userId}`);
                     }
                 }
             } else {
                 console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - relevantHistory is empty, no items to process.`); // 新增日志
             }
-        } else {
+        } else { // STANDARD mode for chat_history
             console.log('[processPreset] DEBUG: chat_history - STANDARD mode selected.'); // 新增日志
             // 标准模式：注入 role: content 对，保留原始内容中的换行符
             const orderedHistory = [...relevantHistory].reverse();
             console.log(`[processPreset] DEBUG: chat_history (STANDARD) - orderedHistory length: ${orderedHistory.length}`); // 新增日志
             for (const historyItem of orderedHistory) {
                 const role = historyItem.role.toLowerCase() as OpenAIRole;
-                if (role === 'user' || role === 'assistant') {
+                if (role === 'user' || role === 'assistant') { // Standard mode does not change role to system
                     outputMessages.push({ role: role, content: historyItem.content });
                     console.log(`[processPreset] DEBUG: chat_history (STANDARD) - Pushed to outputMessages. Role: ${role}, Content: ${historyItem.content.substring(0,100)}...`); // 新增日志
                 }
@@ -580,8 +586,6 @@ export async function substituteVariables(template: string, context: VariableCon
 
                     for (const item of orderedHistory) {
                         console.log(`[processPreset] DEBUG: message_history - Processing item (before format): ${JSON.stringify(item).substring(0, 200)}...`); // 新增日志
-                        // 类型断言，因为 getMessageHistory 返回的 MessageHistory[] 已经包含了 imageUrls (如果 Prisma Client 正确生成)
-                        // 而且 item 已经是 MessageHistory 类型，其中 imageUrls 是可选的 string | null
                         const messageItem = item as typeof item & { imageUrls?: string | null };
 
                         let messageText = '[无法解析]';
@@ -593,7 +597,7 @@ export async function substituteVariables(template: string, context: VariableCon
                                 messageText = rawMsg.map(segment => {
                                     if (segment.type === 'text') return segment.text || segment.data?.text || '';
                                     if (segment.type === 'image') return '[图片]';
-                                    if (segment.type === 'image_url') return '[图片]'; // 新增对 image_url 类型的处理
+                                    if (segment.type === 'image_url') return '[图片]';
                                     if (segment.type === 'face') return `[表情:${segment.data?.id}]`;
                                     if (segment.type === 'at') return `[@${segment.data?.qq}]`;
                                     if (segment.type === 'reply') return `[回复:${segment.data?.id}]`;
@@ -617,7 +621,7 @@ export async function substituteVariables(template: string, context: VariableCon
                                 if (urls.length > 0) {
                                     console.log(`[processPreset] DEBUG: message_history - Found ${urls.length} image URLs for item ${messageItem.userId}. allowImageInput: ${applicableConfig.allowImageInput}`);
                                     for (const originalUrl of urls) {
-                                        const gifBase64 = await convertGifToJpegBase64(originalUrl, console); // Using console for logger temporarily
+                                        const gifBase64 = await convertGifToJpegBase64(originalUrl, console);
                                         if (gifBase64) {
                                             messageContentParts.push({ type: 'image_url', image_url: { url: gifBase64 } });
                                             processedImageCount++;
@@ -632,7 +636,12 @@ export async function substituteVariables(template: string, context: VariableCon
                             }
                         }
                         
-                        const messageRole: OpenAIRole = (variableContext.botId && messageItem.userId === variableContext.botId) ? 'assistant' : 'user';
+                        let messageRole: OpenAIRole = (variableContext.botId && messageItem.userId === variableContext.botId) ? 'assistant' : 'user';
+                        // Apply role change if mode is ADVANCED
+                        if (applicableConfig.mode === 'ADVANCED' && (messageRole === 'user' || messageRole === 'assistant')) {
+                            messageRole = 'system';
+                            console.log(`[processPreset] DEBUG: message_history (ADVANCED) - Role for item ${messageItem.userId} (original determined: ${messageItem.userId === variableContext.botId ? 'assistant' : 'user'}) changed to 'system'.`);
+                        }
                         outputMessages.push({ role: messageRole, content: messageContentParts });
                         console.log(`[processPreset] DEBUG: message_history - Pushed to outputMessages. Role: ${messageRole}, Text: ${textContent.substring(0,50)}..., Images: ${processedImageCount}`);
                     }
@@ -658,13 +667,23 @@ export async function substituteVariables(template: string, context: VariableCon
       // +++ DEBUG: Log the exact string that will be checked for {{user_input}} +++
       console.log(`[processPreset] Role: ${message.role}, AFTER substituteVariables, processedContentString: "${processedContentString}"`);
 
-      const isEnabled = message.enabled === true || message.enabled === undefined; // 更明确地检查 true 或 undefined
+      // const isEnabled = message.enabled === true || message.enabled === undefined; // 更明确地检查 true 或 undefined // This variable is unused
 
       // 直接将处理过的内容字符串作为 content 推入
       // 我们已修改 substituteVariables 函数直接替换 {{user_input}}，不再需要特殊处理
       if (processedContentString.trim()) { // 确保内容不为空
-          const messageToAdd = { role: message.role, content: processedContentString.trim() };
-          console.log(`[processPreset] Pushing message for role ${message.role}:`, JSON.stringify(messageToAdd)); // +++ DEBUG
+          let finalItemRole = message.role;
+          const historyPlaceholderRegex = /\{\{(chat_history|message_history)(::\d+)?\}\}/;
+
+          if (applicableConfig.mode === 'ADVANCED' &&
+              (finalItemRole === 'user' || finalItemRole === 'assistant') &&
+              historyPlaceholderRegex.test(message.content)) { // Test on original template 'message.content'
+              finalItemRole = 'system';
+              console.log(`[processPreset] DEBUG: Ordinary message item (ADVANCED) - Role for item containing history placeholder (original: ${message.role}) changed to 'system'. Original template: "${message.content.substring(0,100)}..."`);
+          }
+
+          const messageToAdd = { role: finalItemRole, content: processedContentString.trim() };
+          console.log(`[processPreset] Pushing message for role ${finalItemRole}:`, JSON.stringify(messageToAdd)); // +++ DEBUG
           outputMessages.push(messageToAdd);
       } else {
            console.log(`[processPreset] Skipping empty content for role ${message.role}.`); // +++ DEBUG
