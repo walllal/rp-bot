@@ -157,6 +157,9 @@ async function performStandardAICall(
         const paramsForLog = { ...completionParams };
         delete (paramsForLog as any).messages; // Remove messages for cleaner log
         logger.debug({ params: paramsForLog }, '[openai-client] Parameters sent to OpenAI API');
+        // Log the full messages array for detailed debugging, especially for mimeType issues
+        // This will show what rp-bot is sending to the intermediary API (newapi)
+        logger.info({ messages_payload: completionParams.messages }, '[openai-client] Detailed messages payload being sent to intermediary API (newapi) (before create call)');
 
         const completion = await dynamicOpenai.chat.completions.create(completionParams);
 

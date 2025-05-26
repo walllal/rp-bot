@@ -71,131 +71,125 @@ export function parseAdvancedResponse(responseText: string): AdvancedOperation[]
         return operations;
     }
 
-    // 处理每个 <message> 块
-    for (const blockContent of messageBlocks) {
-        let currentSegments: OneBotMessageSegment[] = [];
-        // 修改正则表达式，只匹配<pre>和<image>标签
-        const tagRegex = /<pre>(.*?)<\/pre>|<image>(.*?)<\/image>/gs;
-        let tagMatch;
-        let lastBlockIndex = 0;
+    // 只处理最后一个 <message> 块
+    const lastMessageBlockContent = messageBlocks[messageBlocks.length - 1];
+    log('debug', `高级模式：提取到最后一个 <message> 块内容进行处理: ${lastMessageBlockContent.substring(0, 300)}...`);
 
-        while ((tagMatch = tagRegex.exec(blockContent)) !== null) {
-            // 检查标签前是否有裸露文本 (在 <pre> 之外) - 通常应该避免，但可以作为 text 段处理
-            let textBeforeTag = blockContent.substring(lastBlockIndex, tagMatch.index).trim();
-            if (textBeforeTag) {
-                // 只有当裸露文本不包含类似标签的结构时才发送
-                if (!textBeforeTag.includes("<pre") && !textBeforeTag.includes("<image")) {
-                    currentSegments.push({ type: 'text', data: { text: textBeforeTag } });
-                } else {
-                    log('debug', '检测到标签前的裸露文本中包含类标签结构，已忽略:', textBeforeTag);
-                }
+    let currentSegments: OneBotMessageSegment[] = [];
+    // 修改正则表达式，只匹配<pre>标签
+    const tagRegex = /<pre>(.*?)<\/pre>/gs;
+    let tagMatch;
+    let lastBlockIndex = 0; // Tracks position within lastMessageBlockContent
+
+    while ((tagMatch = tagRegex.exec(lastMessageBlockContent)) !== null) {
+        // 裸露文本（在<pre>标签之外的）将被忽略，所以移除 textBeforeTag 的处理逻辑
+
+        // 解构赋值只针对 preContent
+        const [_fullMatch, preContent] = tagMatch; // _fullMatch is unused
+
+        if (preContent !== undefined) { // Should always be true if regex matches
+            // 处理 <pre> 内部的文本、@、图片和语音
+            // 如果已有消息段 (理论上不应该发生，因为我们清除了裸露文本，并且每个<pre>独立处理)
+            // 但为了安全，如果 currentSegments 因某些意外情况有内容，先清空或处理
+            if (currentSegments.length > 0) {
+                 // This case should ideally not be hit if only <pre> content is processed.
+                 // If hit, it implies something was added to currentSegments before this <pre> block.
+                 // Depending on desired behavior, either send them or clear them.
+                 // For now, let's assume each <pre> starts fresh unless it's part of a multi-segment <pre> (handled by parsePreContent).
+                 // The original logic of sending `currentSegments` here before processing a new <pre>
+                 // was to ensure each <pre> tag's content is sent as a distinct set of operations.
+                 // This behavior is preserved.
+                operations.push({ type: 'send_message', segments: [...currentSegments] });
+                currentSegments = []; // 清空当前消息段
             }
-
-            // 由于移除了<voice>标签的直接匹配，需要调整解构赋值
-            const [fullMatch, preContent, imageContent] = tagMatch;
-
-            if (preContent !== undefined) {
-                // 处理 <pre> 内部的文本、@、图片和语音
-                // 如果已有消息段，先打包发送，实现每个<pre>单独发送的效果
+            
+            const preText = preContent.trim();
+            
+            // 如果<pre>标签为空，则不发送任何消息
+            if (!preText) {
+                log('debug', '检测到空<pre>标签，不发送消息');
+                // lastBlockIndex needs to be updated even if we continue
+                lastBlockIndex = tagRegex.lastIndex;
+                continue;
+            }
+            
+            // 检查<pre>内是否有<voice>标签
+            const voiceRegex = /<voice>(.*?)<\/voice>/g;
+            let voiceMatch;
+            // let hasVoice = false; // Unused
+            let voiceText = '';
+            
+            if ((voiceMatch = voiceRegex.exec(preText)) !== null) { // Check if any voice tag exists
+                // hasVoice = true; // Unused
+                let lastVoiceIndex = 0; // Index within preText
+                
+                voiceRegex.lastIndex = 0; // Reset regex for full scan of preText
+                
+                while ((voiceMatch = voiceRegex.exec(preText)) !== null) {
+                    // 处理<voice>标签前的文本
+                    if (voiceMatch.index > lastVoiceIndex) {
+                        const textBeforeVoice = preText.substring(lastVoiceIndex, voiceMatch.index).trim();
+                        if (textBeforeVoice) {
+                            // currentSegments for this part of preText
+                            let segmentsForTextBeforeVoice: OneBotMessageSegment[] = [];
+                            parsePreContent(textBeforeVoice, segmentsForTextBeforeVoice);
+                            if (segmentsForTextBeforeVoice.length > 0) {
+                                operations.push({ type: 'send_message', segments: segmentsForTextBeforeVoice });
+                            }
+                        }
+                    }
+                    
+                    voiceText = voiceMatch[1].trim();
+                    if (voiceText) {
+                        operations.push({ type: 'send_voice', text: voiceText });
+                        log('debug', '解析到混合<pre>中的语音标签:', voiceText);
+                    }
+                    
+                    lastVoiceIndex = voiceRegex.lastIndex;
+                }
+                
+                // 处理最后一个<voice>标签后的文本
+                if (lastVoiceIndex < preText.length) {
+                    const textAfterLastVoice = preText.substring(lastVoiceIndex).trim();
+                    if (textAfterLastVoice) {
+                        let segmentsForTextAfterVoice: OneBotMessageSegment[] = [];
+                        parsePreContent(textAfterLastVoice, segmentsForTextAfterVoice);
+                        if (segmentsForTextAfterVoice.length > 0) {
+                            operations.push({ type: 'send_message', segments: segmentsForTextAfterVoice });
+                        }
+                    }
+                }
+                // currentSegments should be empty here as parts of preText are sent immediately
+                currentSegments = [];
+            } else {
+                // 不含语音标签的普通<pre>内容，使用通用解析函数处理
+                // currentSegments will be populated by parsePreContent
+                parsePreContent(preText, currentSegments);
+                
+                // 立即打包发送当前<pre>内容
                 if (currentSegments.length > 0) {
                     operations.push({ type: 'send_message', segments: [...currentSegments] });
                     currentSegments = []; // 清空当前消息段
                 }
-                
-                const preText = preContent.trim();
-                
-                // 如果<pre>标签为空，则不发送任何消息
-                if (!preText) {
-                    log('debug', '检测到空<pre>标签，不发送消息');
-                    continue;
-                }
-                
-                // 检查<pre>内是否有<voice>标签
-                const voiceRegex = /<voice>(.*?)<\/voice>/g;
-                let voiceMatch;
-                let hasVoice = false;
-                let voiceText = '';
-                
-                // 处理<pre>文本<voice>语音</voice></pre>或<pre><voice>语音</voice>文本</pre>的情况
-                // 将其拆分为多条消息：文本消息和语音消息
-                if ((voiceMatch = voiceRegex.exec(preText)) !== null) {
-                    hasVoice = true;
-                    let lastIndex = 0;
-                    let segments = [];
-                    
-                    // 重置regex，因为已经执行过一次exec
-                    voiceRegex.lastIndex = 0;
-                    
-                    // 查找所有<voice>标签并按顺序处理
-                    while ((voiceMatch = voiceRegex.exec(preText)) !== null) {
-                        // 处理<voice>标签前的文本
-                        if (voiceMatch.index > lastIndex) {
-                            const textBefore = preText.substring(lastIndex, voiceMatch.index).trim();
-                            if (textBefore) {
-                                parsePreContent(textBefore, currentSegments);
-                                if (currentSegments.length > 0) {
-                                    operations.push({ type: 'send_message', segments: [...currentSegments] });
-                                    currentSegments = [];
-                                }
-                            }
-                        }
-                        
-                        // 处理语音内容
-                        voiceText = voiceMatch[1].trim();
-                        if (voiceText) {
-                            operations.push({ type: 'send_voice', text: voiceText });
-                            log('debug', '解析到混合<pre>中的语音标签:', voiceText);
-                        }
-                        
-                        lastIndex = voiceRegex.lastIndex;
-                    }
-                    
-                    // 处理最后一个<voice>标签后的文本
-                    if (lastIndex < preText.length) {
-                        const textAfter = preText.substring(lastIndex).trim();
-                        if (textAfter) {
-                            parsePreContent(textAfter, currentSegments);
-                            if (currentSegments.length > 0) {
-                                operations.push({ type: 'send_message', segments: [...currentSegments] });
-                                currentSegments = [];
-                            }
-                        }
-                    }
-                } else {
-                    // 不含语音标签的普通<pre>内容，使用通用解析函数处理
-                    parsePreContent(preText, currentSegments);
-                    
-                    // 立即打包发送当前<pre>内容
-                    if (currentSegments.length > 0) {
-                        operations.push({ type: 'send_message', segments: [...currentSegments] });
-                        currentSegments = []; // 清空当前消息段，准备处理下一个标签
-                    }
-                }
-            } else if (imageContent !== undefined) {
-                const imageUrl = imageContent.trim();
-                if (imageUrl) {
-                    currentSegments.push({ type: 'image', data: { file: imageUrl } });
-                }
-            }
-            lastBlockIndex = tagRegex.lastIndex;
-        }
-
-        // 处理最后一个标签之后可能存在的裸露文本
-        let textAfterLastTag = blockContent.substring(lastBlockIndex).trim();
-        if (textAfterLastTag) {
-            // 只有当裸露文本不包含类似标签的结构时才发送
-            if (!textAfterLastTag.includes("<pre") && !textAfterLastTag.includes("<image")) {
-                currentSegments.push({ type: 'text', data: { text: textAfterLastTag } });
-            } else {
-                log('debug', '检测到最后一个标签后的裸露文本中包含类标签结构，已忽略:', textAfterLastTag);
             }
         }
+        // Removed 'else if (imageContent !== undefined)' block as tagRegex only matches <pre>
 
-        // 如果在处理完一个 <message> 块后，仍有未发送的消息段，打包它们
-        if (currentSegments.length > 0) {
-            operations.push({ type: 'send_message', segments: currentSegments });
-        }
-    } // 结束 messageBlocks 循环
+        lastBlockIndex = tagRegex.lastIndex;
+    }
+
+    // 裸露文本（在所有<pre>标签之后，但在</message>之前）将被忽略
+    // Removed 'textAfterLastTag' processing logic
+
+    // 如果在处理完最后一个 <message> 块后，仍有未发送的消息段 (理论上不应该，因为每个<pre>都独立发送了)
+    // 但以防万一，如果 currentSegments 还有内容，清空它，因为我们只处理 <pre> 块。
+    if (currentSegments.length > 0) {
+        log('trace', 'Clearing unexpected remaining segments after processing all <pre> tags in the last message block.', currentSegments);
+        currentSegments = []; // Ensure no stray segments are sent
+    }
+    // The old logic of pushing remaining currentSegments is removed because
+    // we are only interested in content explicitly within <pre> tags, and each <pre>
+    // (or its parts if mixed with <voice>) should have generated its own operations.
 
     return operations;
 }
