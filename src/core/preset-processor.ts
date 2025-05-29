@@ -539,8 +539,8 @@ export async function substituteVariables(template: string, context: VariableCon
                     let role = chatItem.role.toLowerCase() as OpenAIRole;
                     // Apply role change if mode is ADVANCED
                     if (applicableConfig.mode === 'ADVANCED' && (role === 'user' || role === 'assistant')) {
-                        role = 'system';
-                        console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - Role for item ${chatItem.userId} (original: ${chatItem.role}) changed to 'system'.`);
+                        role = 'user'; // <--- 修改：将 system 改为 user
+                        console.log(`[processPreset] DEBUG: chat_history (ADVANCED) - Role for item ${chatItem.userId} (original: ${chatItem.role}) changed to 'user'.`);
                     }
 
                     if (role === 'user' || role === 'assistant' || role === 'system') { // Ensure role is valid before pushing
@@ -639,8 +639,8 @@ export async function substituteVariables(template: string, context: VariableCon
                         let messageRole: OpenAIRole = (variableContext.botId && messageItem.userId === variableContext.botId) ? 'assistant' : 'user';
                         // Apply role change if mode is ADVANCED
                         if (applicableConfig.mode === 'ADVANCED' && (messageRole === 'user' || messageRole === 'assistant')) {
-                            messageRole = 'system';
-                            console.log(`[processPreset] DEBUG: message_history (ADVANCED) - Role for item ${messageItem.userId} (original determined: ${messageItem.userId === variableContext.botId ? 'assistant' : 'user'}) changed to 'system'.`);
+                            messageRole = 'user'; // <--- 修改：将 system 改为 user
+                            console.log(`[processPreset] DEBUG: message_history (ADVANCED) - Role for item ${messageItem.userId} (original determined: ${messageItem.userId === variableContext.botId ? 'assistant' : 'user'}) changed to 'user'.`);
                         }
                         outputMessages.push({ role: messageRole, content: messageContentParts });
                         console.log(`[processPreset] DEBUG: message_history - Pushed to outputMessages. Role: ${messageRole}, Text: ${textContent.substring(0,50)}..., Images: ${processedImageCount}`);

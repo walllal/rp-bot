@@ -100,6 +100,89 @@ export async function callOpenAI(
     }
 }
 
+// 辅助函数：预处理OpenAI消息，合并相邻的assistant和user消息
+function preprocessOpenAIMessages(messages: OpenAIMessage[]): OpenAIMessage[] {
+    if (!messages || messages.length === 0) {
+        return [];
+    }
+
+    let processed = messages;
+
+    // 1. 合并 assistant 消息
+    processed = processed.reduce((accumulator, currentMessage) => {
+        const lastMessageInAccumulator = accumulator.length > 0 ? accumulator[accumulator.length - 1] : null;
+
+        if (
+            lastMessageInAccumulator &&
+            lastMessageInAccumulator.role === 'assistant' &&
+            currentMessage.role === 'assistant'
+        ) {
+            const lastContent = lastMessageInAccumulator.content;
+            const currentContent = currentMessage.content;
+            let canMerge = false;
+            let mergedContent: OpenAIMessage['content'] = ''; // Placeholder
+
+            if (typeof lastContent === 'string' && typeof currentContent === 'string') {
+                mergedContent = `${lastContent}\n${currentContent}`;
+                canMerge = true;
+            } else if (
+                Array.isArray(lastContent) && lastContent.length === 1 && lastContent[0].type === 'text' &&
+                Array.isArray(currentContent) && currentContent.length === 1 && currentContent[0].type === 'text'
+            ) {
+                // 类型断言以访问 .text 属性
+                const lastTextItem = lastContent[0] as { type: 'text'; text: string };
+                const currentTextItem = currentContent[0] as { type: 'text'; text: string };
+                mergedContent = [{ type: 'text', text: `${lastTextItem.text}\n${currentTextItem.text}` }];
+                canMerge = true;
+            }
+
+            if (canMerge) {
+                accumulator[accumulator.length - 1] = { ...lastMessageInAccumulator, content: mergedContent };
+            } else {
+                accumulator.push({ ...currentMessage });
+            }
+        } else {
+            accumulator.push({ ...currentMessage });
+        }
+        return accumulator;
+    }, [] as OpenAIMessage[]);
+
+    // 2. 合并 user 消息
+    processed = processed.reduce((accumulator, currentMessage) => {
+        const lastMessageInAccumulator = accumulator.length > 0 ? accumulator[accumulator.length - 1] : null;
+
+        if (
+            lastMessageInAccumulator &&
+            lastMessageInAccumulator.role === 'user' &&
+            currentMessage.role === 'user'
+        ) {
+            const lastContent = lastMessageInAccumulator.content;
+            const currentContent = currentMessage.content;
+            let mergedContentByUser: OpenAIMessage['content'];
+
+            if (typeof lastContent === 'string' && typeof currentContent === 'string') {
+                mergedContentByUser = `${lastContent}\n${currentContent}`;
+            } else if (Array.isArray(lastContent) && typeof currentContent === 'string') {
+                mergedContentByUser = [...lastContent, { type: 'text', text: currentContent }];
+            } else if (typeof lastContent === 'string' && Array.isArray(currentContent)) {
+                mergedContentByUser = [{ type: 'text', text: lastContent }, ...currentContent];
+            } else if (Array.isArray(lastContent) && Array.isArray(currentContent)) {
+                mergedContentByUser = [...lastContent, ...currentContent];
+            } else {
+                // 不可合并的类型组合，单独推送当前消息
+                accumulator.push({ ...currentMessage });
+                return accumulator;
+            }
+            accumulator[accumulator.length - 1] = { ...lastMessageInAccumulator, content: mergedContentByUser };
+        } else {
+            accumulator.push({ ...currentMessage });
+        }
+        return accumulator;
+    }, [] as OpenAIMessage[]);
+
+    return processed;
+}
+
 /**
  * 执行标准AI对话调用
  * @param messages 发送给API的消息列表
@@ -112,13 +195,17 @@ async function performStandardAICall(
     config: OpenAIConfig,
     logger: FastifyBaseLogger
 ): Promise<string | null> {
+    const initialMessagesCount = messages.length;
+    const processedMessages = preprocessOpenAIMessages(messages);
+    const finalMessagesCount = processedMessages.length;
+
     // 2. 准备 OpenAI 客户端选项
     const options: ConstructorParameters<typeof OpenAI>[0] = { apiKey: config.apiKey };
     if (config.baseURL) {
         options.baseURL = config.baseURL;
-        logger.info(`[openai-client] 准备调用 OpenAI API，模型: ${config.modelName}, 消息数: ${messages.length}, 使用自定义 URL: ${config.baseURL}`);
+        logger.info(`[openai-client] 准备调用 OpenAI API，模型: ${config.modelName}, 原始消息数: ${initialMessagesCount}, 处理后消息数: ${finalMessagesCount}, 使用自定义 URL: ${config.baseURL}`);
     } else {
-        logger.info(`[openai-client] 准备调用 OpenAI API，模型: ${config.modelName}, 消息数: ${messages.length}`);
+        logger.info(`[openai-client] 准备调用 OpenAI API，模型: ${config.modelName}, 原始消息数: ${initialMessagesCount}, 处理后消息数: ${finalMessagesCount}`);
     }
 
     // 3. 动态创建 OpenAI 客户端实例
@@ -135,7 +222,7 @@ async function performStandardAICall(
         // Prepare parameters, including advanced ones if provided
         const completionParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
             model: config.modelName,
-            messages: messages as ChatCompletionMessageParam[],
+            messages: processedMessages as ChatCompletionMessageParam[],
         };
         // Add advanced parameters if they exist and are not null
         if (config.openaiMaxTokens !== null && config.openaiMaxTokens !== undefined) {
@@ -339,26 +426,34 @@ async function performWebSearch(
         logger.info(`[openai-client] 联网搜索完成，结果长度: ${searchContent.length}字符`);
         logger.debug(`[openai-client] 联网搜索结果内容:\n${searchContent}`);
         // 创建一个新的消息列表用于第二次调用，替换变量
-        const processedMessages = messages.map(msg => {
-            if (msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant') {
-                // 查找 {{search_content}} 变量并替换
-                if (typeof msg.content === 'string') {
-                    return {
-                        ...msg,
-                        content: msg.content.replace(/{{search_content}}/g, searchContent)
-                    };
+        let messagesForSecondCall = messages.map(msg => {
+                if (msg.role === 'system' || msg.role === 'user' || msg.role === 'assistant') {
+                    // 查找 {{search_content}} 变量并替换
+                    if (typeof msg.content === 'string') {
+                        return {
+                            ...msg,
+                            content: msg.content.replace(/{{search_content}}/g, searchContent)
+                        };
+                    }
                 }
-            }
-            return msg;
-        });
-        
-        // 合并后的日志
-        logger.debug({
-            message: `[openai-client] At 提及处理完成，发送给正常请求的 OpenAI 消息:`,
-            data: processedMessages
-        });
-        
-        // 使用第二个模型和替换变量后的消息进行第二次调用
+                return msg;
+            });
+            
+            // 合并后的日志 (在合并 assistant 和 user 消息之前)
+            logger.debug({
+                message: `[openai-client] 替换 search_content 后，准备发送给标准AI调用的消息 (合并前):`,
+                data: messagesForSecondCall
+            });
+            
+            // 对替换了 search_content 后的消息进行预处理（合并）
+            // messagesForSecondCall = preprocessOpenAIMessages(messagesForSecondCall);
+            // logger.debug({
+            //     message: `[openai-client] Assistant 和 User 消息合并后，准备发送给标准AI调用的消息:`,
+            //     data: messagesForSecondCall
+            // });
+            // performStandardAICallWithLogs 内部会调用 preprocessOpenAIMessages，所以这里不需要重复调用
+    
+            // 使用第二个模型和替换变量后的消息进行第二次调用
         // Construct config for the second call, using web search specific parameters
         const secondCallConfig: OpenAIConfig = {
             apiKey: config.apiKey, // Use main API key for the summary call
@@ -374,12 +469,14 @@ async function performWebSearch(
             // Other fields from original config are not needed here unless performStandardAICallWithLogs requires them
         };
 
-        const secondCallResult = await performStandardAICallWithLogs(processedMessages, secondCallConfig, logger);
+        const secondCallResult = await performStandardAICallWithLogs(messagesForSecondCall, secondCallConfig, logger);
         
         // 返回结果和处理后的消息，让message-handler能够记录日志
-        return { 
+        // 确保返回的 processedMessages 是经过完整预处理的
+        const finalProcessedMessages = preprocessOpenAIMessages(messagesForSecondCall);
+        return {
             content: secondCallResult,
-            processedMessages: processedMessages 
+            processedMessages: finalProcessedMessages
         };
     } catch (error: any) {
         logger.error({ err: error }, `[openai-client] 联网搜索失败: ${error.message || error}`);
@@ -409,6 +506,10 @@ async function performStandardAICallWithLogs(
     config: OpenAIConfig,
     logger: FastifyBaseLogger
 ): Promise<string | null> {
+    const initialMessagesCount = messages.length;
+    const processedMessages = preprocessOpenAIMessages(messages);
+    const finalMessagesCount = processedMessages.length;
+
     // 准备 OpenAI 客户端选项
     const options: ConstructorParameters<typeof OpenAI>[0] = { apiKey: config.apiKey };
     if (config.baseURL) {
@@ -422,9 +523,9 @@ async function performStandardAICallWithLogs(
         
         // 输出准备日志
         if (config.baseURL) {
-            logger.info(`[openai-client] 准备调用 OpenAI API，模型: ${config.modelName}, 消息数: ${messages.length}, 使用自定义 URL: ${config.baseURL}`);
+            logger.info(`[openai-client] 准备调用 OpenAI API (WithLogs)，模型: ${config.modelName}, 原始消息数: ${initialMessagesCount}, 处理后消息数: ${finalMessagesCount}, 使用自定义 URL: ${config.baseURL}`);
         } else {
-            logger.info(`[openai-client] 准备调用 OpenAI API，模型: ${config.modelName}, 消息数: ${messages.length}`);
+            logger.info(`[openai-client] 准备调用 OpenAI API (WithLogs)，模型: ${config.modelName}, 原始消息数: ${initialMessagesCount}, 处理后消息数: ${finalMessagesCount}`);
         }
     } catch (initError: any) {
         logger.error({ err: initError }, `[openai-client] 动态创建 OpenAI 客户端实例时出错: ${initError.message || initError}`);
@@ -436,7 +537,7 @@ async function performStandardAICallWithLogs(
         // Prepare parameters, including advanced ones if provided
         const completionParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming = {
             model: config.modelName,
-            messages: messages as ChatCompletionMessageParam[],
+            messages: processedMessages as ChatCompletionMessageParam[],
         };
         // Add advanced parameters if they exist and are not null
         // Note: This function is called by performWebSearch for the summary,
