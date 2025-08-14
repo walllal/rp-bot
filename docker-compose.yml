@@ -1,0 +1,68 @@
+services:
+  # NapCat QQ 机器人客户端
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: napcat
+    restart: unless-stopped
+    environment:
+      - NAPCAT_UID=1000
+      - NAPCAT_GID=1000
+      - TZ=Asia/Shanghai
+    ports:
+      - "3001:3001"    # HTTP API
+      - "3002:3002"    # WebSocket
+      - "6099:6099"    # WebUI 管理界面
+    volumes:
+      - ./napcat/qq_data:/app/.config/QQ
+      - ./napcat/config:/app/napcat/config
+    networks:
+      - bot-project
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6099 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # RP-Bot 角色扮演机器人
+  rp-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rp-bot
+    restart: unless-stopped
+    ports:
+      - "8008:8008"    # Web 管理界面
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./rp-bot/data:/app/prisma/data
+      - ./rp-bot/logs:/app/logs
+    networks:
+      - bot-project
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8008 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+# 自动分配网络，避免冲突
+networks:
+  bot-project:
+    name: bot-project
+    driver: bridge
+    # 让 Docker 自动分配子网，避免网络冲突
+
+volumes:
+  napcat_qq_data:
+    driver: local
+  napcat_config:
+    driver: local
+  rp_bot_data:
+    driver: local
+  rp_bot_logs:
+    driver: local
