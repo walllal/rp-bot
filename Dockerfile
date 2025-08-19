@@ -13,6 +13,9 @@ RUN apk add --no-cache python3 make g++
 # 复制 package 文件
 COPY package*.json ./
 
+# 复制 Prisma schema 文件（在 npm install 之前）
+COPY prisma/ ./prisma/
+
 # 安装依赖
 RUN npm install
 
@@ -30,6 +33,10 @@ RUN npm run build
 
 # 暴露端口
 EXPOSE 8008
+
+# 健康检查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8008/health || exit 1
 
 # 启动命令
 CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
